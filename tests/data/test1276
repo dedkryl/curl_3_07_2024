@@ -13,12 +13,12 @@ documentation
 none
 </server>
 
-<name>
+ <name>
 Verify lib/optiontable.pl
-</name>
+ </name>
 
 <command type="perl">
-%SRCDIR/test1276.pl %SRCDIR/..
+%SRCDIR/option-check.pl %SRCDIR/..
 </command>
 </client>
 

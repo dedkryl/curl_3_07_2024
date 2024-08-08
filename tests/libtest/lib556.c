@@ -37,7 +37,7 @@
   #define STDERR_FILENO 2
 #endif
 
-CURLcode test(char *URL)
+int test(char *URL)
 {
   CURLcode res;
   CURL *curl;
@@ -87,7 +87,7 @@ CURLcode test(char *URL)
     }
 
     if(iolen)
-      res = TEST_ERR_FAILURE;
+      res = (CURLcode)TEST_ERR_FAILURE;
   }
 
 test_cleanup:
@@ -95,5 +95,5 @@ test_cleanup:
   curl_easy_cleanup(curl);
   curl_global_cleanup();
 
-  return res;
+  return (int)res;
 }

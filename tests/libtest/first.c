@@ -35,6 +35,10 @@
 #  include <fcntl.h> /* for setmode() */
 #endif
 
+#ifdef USE_NSS
+#include <nspr.h>
+#endif
+
 #ifdef CURLDEBUG
 #  define MEMDEBUG_NODEFINES
 #  include "memdebug.h"
@@ -65,16 +69,12 @@ int select_wrapper(int nfds, fd_set *rd, fd_set *wr, fd_set *exc,
 
 void wait_ms(int ms)
 {
-  if(ms < 0)
-    return;
 #ifdef USE_WINSOCK
-  Sleep((DWORD)ms);
+  Sleep(ms);
 #else
-  {
-    struct timeval t;
-    curlx_mstotv(&t, ms);
-    select_wrapper(0, NULL, NULL, NULL, &t);
-  }
+  struct timeval t;
+  curlx_mstotv(&t, ms);
+  select_wrapper(0, NULL, NULL, NULL, &t);
 #endif
 }
 
@@ -136,7 +136,7 @@ char *hexdump(const unsigned char *buffer, size_t len)
 int main(int argc, char **argv)
 {
   char *URL;
-  CURLcode result;
+  int result;
 
 #ifdef O_BINARY
 #  ifdef __HIGHC__
@@ -176,14 +176,19 @@ int main(int argc, char **argv)
   fprintf(stderr, "URL: %s\n", URL);
 
   result = test(URL);
-  fprintf(stderr, "Test ended with result %d\n", result);
 
-#ifdef _WIN32
+#ifdef USE_NSS
+  if(PR_Initialized())
+    /* prevent valgrind from reporting possibly lost memory (fd cache, ...) */
+    PR_Cleanup();
+#endif
+
+#ifdef WIN32
   /* flush buffers of all streams regardless of mode */
   _flushall();
 #endif
 
   /* Regular program status codes are limited to 0..127 and 126 and 127 have
    * special meanings by the shell, so limit a normal return code to 125 */
-  return (int)result <= 125 ? (int)result : 125;
+  return result <= 125 ? result : 125;
 }

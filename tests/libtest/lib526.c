@@ -52,9 +52,9 @@
 
 #define NUM_HANDLES 4
 
-CURLcode test(char *URL)
+int test(char *URL)
 {
-  CURLcode res = CURLE_OK;
+  int res = 0;
   CURL *curl[NUM_HANDLES];
   int running;
   CURLM *m = NULL;
@@ -109,7 +109,7 @@ CURLcode test(char *URL)
         /* first remove the only handle we use */
         curl_multi_remove_handle(m, curl[0]);
 
-        /* make us reuse the same handle all the time, and try resetting
+        /* make us re-use the same handle all the time, and try resetting
            the handle first too */
         curl_easy_reset(curl[0]);
         easy_setopt(curl[0], CURLOPT_URL, URL);
@@ -163,7 +163,7 @@ test_cleanup:
      cleanup'ed yet, in this case we have to cleanup them or otherwise these
      will be leaked, let's use undocumented cleanup sequence - type UB */
 
-  if(res != CURLE_OK)
+  if(res)
     for(i = 0; i < NUM_HANDLES; i++)
       curl_easy_cleanup(curl[i]);
 

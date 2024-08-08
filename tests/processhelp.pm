@@ -48,7 +48,7 @@ BEGIN {
         no warnings "all";
         require Time::HiRes;
     };
-    # portable sleeping falls back to native Sleep on Windows
+    # portable sleeping falls back to native Sleep on Win32
     eval {
         no warnings "all";
         require Win32;

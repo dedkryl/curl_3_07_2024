@@ -33,7 +33,7 @@
  * Two FTP uploads, the second with no content sent.
  */
 
-CURLcode test(char *URL)
+int test(char *URL)
 {
   CURL *curl;
   CURLcode res = CURLE_OK;
@@ -51,7 +51,7 @@ CURLcode test(char *URL)
     fprintf(stderr, "fopen failed with error: %d %s\n",
             errno, strerror(errno));
     fprintf(stderr, "Error opening file: %s\n", libtest_arg2);
-    return (CURLcode)-2; /* if this happens things are major weird */
+    return -2; /* if this happens things are major weird */
   }
 
   /* get the file size of the local file */
@@ -99,9 +99,7 @@ CURLcode test(char *URL)
   test_setopt(curl, CURLOPT_READDATA, hd_src);
 
   /* Now run off and do what you've been told! */
-  res = curl_easy_perform(curl);
-  if(res)
-    goto test_cleanup;
+  curl_easy_perform(curl);
 
   /* and now upload the exact same again, but without rewinding so it already
      is at end of file */

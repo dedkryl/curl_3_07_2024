@@ -25,7 +25,7 @@
 
 #include "urldata.h"
 #include "bufq.h"
-#include "curl_trc.h"
+#include "curl_log.h"
 
 static CURLcode unit_setup(void)
 {

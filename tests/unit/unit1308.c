@@ -44,8 +44,7 @@ static size_t print_httppost_callback(void *arg, const char *buf, size_t len)
 }
 
 UNITTEST_START
-  CURLFORMcode rc;
-  int res;
+  int rc;
   struct curl_httppost *post = NULL;
   struct curl_httppost *last = NULL;
   size_t total_size = 0;
@@ -71,11 +70,11 @@ UNITTEST_START
 
   fail_unless(rc == 0, "curl_formadd returned error");
 
-  res = curl_formget(post, &total_size, print_httppost_callback);
+  rc = curl_formget(post, &total_size, print_httppost_callback);
 
-  fail_unless(res == 0, "curl_formget returned error");
+  fail_unless(rc == 0, "curl_formget returned error");
 
-  fail_unless(total_size == 518, "curl_formget got wrong size back");
+  fail_unless(total_size == 488, "curl_formget got wrong size back");
 
   curl_formfree(post);
 
@@ -90,9 +89,9 @@ UNITTEST_START
 
   fail_unless(rc == 0, "curl_formadd returned error");
 
-  res = curl_formget(post, &total_size, print_httppost_callback);
-  fail_unless(res == 0, "curl_formget returned error");
-  fail_unless(total_size == 899, "curl_formget got wrong size back");
+  rc = curl_formget(post, &total_size, print_httppost_callback);
+  fail_unless(rc == 0, "curl_formget returned error");
+  fail_unless(total_size == 851, "curl_formget got wrong size back");
 
   curl_formfree(post);
 

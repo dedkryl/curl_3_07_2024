@@ -6,7 +6,6 @@ multi
 resolve
 speedcheck
 flaky
-timing-dependent
 </keywords>
 </info>
 
@@ -18,11 +17,11 @@ none
 <tool>
 lib%TESTNUMBER
 </tool>
-<name>
+ <name>
 HTTP request, remove handle while resolving, don't block
-</name>
+ </name>
 
-<command>
+ <command>
 http://a-site-never-accessed.example.org/%TESTNUMBER
 </command>
 </client>

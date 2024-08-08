@@ -31,9 +31,9 @@
 
 #define NUM_URLS 4
 
-CURLcode test(char *URL)
+int test(char *URL)
 {
-  CURLcode res = CURLE_OK;
+  int res = 0;
   CURL *curl = NULL;
   int i;
   char target_url[256];
@@ -83,8 +83,6 @@ CURLcode test(char *URL)
     easy_setopt(curl, CURLOPT_URL, target_url);
 
     res = curl_easy_perform(curl);
-    if(res)
-      goto test_cleanup;
 
     abort_on_test_timeout();
   }

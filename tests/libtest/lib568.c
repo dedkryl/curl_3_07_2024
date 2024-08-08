@@ -41,9 +41,9 @@ static char *suburl(const char *base, int i)
 /*
  * Test the Client->Server ANNOUNCE functionality (PUT style)
  */
-CURLcode test(char *URL)
+int test(char *URL)
 {
-  CURLcode res;
+  int res;
   CURL *curl;
   int sdp;
   FILE *sdpf = NULL;
@@ -75,7 +75,7 @@ CURLcode test(char *URL)
     goto test_cleanup;
   }
   test_setopt(curl, CURLOPT_RTSP_STREAM_URI, stream_uri);
-  curl_free(stream_uri);
+  free(stream_uri);
   stream_uri = NULL;
 
   sdp = open(libtest_arg2, O_RDONLY);
@@ -93,7 +93,6 @@ CURLcode test(char *URL)
   test_setopt(curl, CURLOPT_READDATA, sdpf);
   test_setopt(curl, CURLOPT_UPLOAD, 1L);
   test_setopt(curl, CURLOPT_INFILESIZE_LARGE, (curl_off_t) file_info.st_size);
-  test_setopt(curl, CURLOPT_VERBOSE, 1L);
 
   /* Do the ANNOUNCE */
   res = curl_easy_perform(curl);
@@ -111,7 +110,7 @@ CURLcode test(char *URL)
     goto test_cleanup;
   }
   test_setopt(curl, CURLOPT_RTSP_STREAM_URI, stream_uri);
-  curl_free(stream_uri);
+  free(stream_uri);
   stream_uri = NULL;
 
   test_setopt(curl, CURLOPT_RTSP_REQUEST, CURL_RTSPREQ_DESCRIBE);
@@ -127,7 +126,7 @@ CURLcode test(char *URL)
     goto test_cleanup;
   }
   test_setopt(curl, CURLOPT_RTSP_STREAM_URI, stream_uri);
-  curl_free(stream_uri);
+  free(stream_uri);
   stream_uri = NULL;
 
   custom_headers = curl_slist_append(custom_headers,
@@ -157,7 +156,7 @@ CURLcode test(char *URL)
     goto test_cleanup;
   }
   test_setopt(curl, CURLOPT_RTSP_STREAM_URI, stream_uri);
-  curl_free(stream_uri);
+  free(stream_uri);
   stream_uri = NULL;
 
   test_setopt(curl, CURLOPT_RTSP_REQUEST, CURL_RTSPREQ_OPTIONS);
@@ -168,7 +167,7 @@ test_cleanup:
   if(sdpf)
     fclose(sdpf);
 
-  curl_free(stream_uri);
+  free(stream_uri);
 
   if(custom_headers)
     curl_slist_free_all(custom_headers);

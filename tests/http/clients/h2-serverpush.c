@@ -25,19 +25,21 @@
  * HTTP/2 server push
  * </DESC>
  */
+
 /* curl stuff */
 #include <curl/curl.h>
+#include <curl/mprintf.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+/* somewhat unix-specific */
+#include <sys/time.h>
+#include <unistd.h>
+
 #ifndef CURLPIPE_MULTIPLEX
 #error "too old libcurl, cannot do HTTP/2 server push!"
-#endif
-
-#ifdef _MSC_VER
-#define snprintf _snprintf
 #endif
 
 static
@@ -100,7 +102,10 @@ int my_trace(CURL *handle, curl_infotype type,
   switch(type) {
   case CURLINFO_TEXT:
     fprintf(stderr, "== Info: %s", data);
+    /* FALLTHROUGH */
+  default: /* in case a new one is introduced to shock us */
     return 0;
+
   case CURLINFO_HEADER_OUT:
     text = "=> Send header";
     break;
@@ -119,8 +124,6 @@ int my_trace(CURL *handle, curl_infotype type,
   case CURLINFO_SSL_DATA_IN:
     text = "<= Recv SSL data";
     break;
-  default: /* in case a new one is introduced to shock us */
-    return 0;
   }
 
   dump(text, (unsigned char *)data, size, 1);
@@ -170,7 +173,7 @@ static int server_push_callback(CURL *parent,
   int rv;
 
   (void)parent; /* we have no use for this */
-  snprintf(filename, sizeof(filename)-1, "push%u", count++);
+  curl_msnprintf(filename, sizeof(filename)-1, "push%u", count++);
 
   /* here's a new stream, save it in a new file for each new push */
   out = fopen(filename, "wb");

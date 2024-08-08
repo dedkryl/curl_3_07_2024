@@ -43,23 +43,22 @@ AM_CPPFLAGS = -I$(top_srcdir)/include        \
               -I$(top_srcdir)/lib            \
               -I$(top_srcdir)/src
 
-bin_PROGRAMS = curl
+bin_PROGRAMS = curl-impersonate-chrome
+
+SUBDIRS = ../docs
 
 if USE_CPPFLAG_CURL_STATICLIB
 AM_CPPFLAGS += -DCURL_STATICLIB
 endif
-AM_CPPFLAGS += -DBUILDING_CURL
 
 include Makefile.inc
 
 # CURL_FILES comes from Makefile.inc
-curl_SOURCES = $(CURL_FILES)
+curl_impersonate_chrome_SOURCES = $(CURL_FILES)
 if HAVE_WINDRES
-curl_SOURCES += $(CURL_RCFILES)
+curl_impersonate_chrome_SOURCES += $(CURL_RCFILES)
 $(CURL_RCFILES): tool_version.h
 endif
-
-curl_LDFLAGS = $(AM_LDFLAGS) $(CURL_LDFLAGS_BIN)
 
 # This might hold -Werror
 CFLAGS += @CURL_CFLAG_EXTRAS@
@@ -68,9 +67,9 @@ CFLAGS += @CURL_CFLAG_EXTRAS@
 LIBS = $(BLANK_AT_MAKETIME)
 
 if USE_EXPLICIT_LIB_DEPS
-curl_LDADD = $(top_builddir)/lib/libcurl.la @LIBCURL_LIBS@
+curl_impersonate_chrome_LDADD = $(top_builddir)/lib/libcurl-impersonate-chrome.la @LIBCURL_LIBS@
 else
-curl_LDADD = $(top_builddir)/lib/libcurl.la @SSL_LIBS@ @ZLIB_LIBS@ @CURL_NETWORK_AND_TIME_LIBS@
+curl_impersonate_chrome_LDADD = $(top_builddir)/lib/libcurl-impersonate-chrome.la @NSS_LIBS@ @SSL_LIBS@ @ZLIB_LIBS@ @CURL_NETWORK_AND_TIME_LIBS@
 endif
 
 # if unit tests are enabled, build a static library to link them with
@@ -86,13 +85,13 @@ endif
 CLEANFILES = tool_hugehelp.c
 # Use the C locale to ensure that only ASCII characters appear in the
 # embedded text.
-NROFF=env LC_ALL=C @NROFF@ @MANOPT@ 2>/dev/null # figured out by the configure script
+NROFF=env LC_ALL=C @NROFF@ @MANOPT@ # figured out by the configure script
 
-EXTRA_DIST = mk-file-embed.pl mkhelp.pl \
- Makefile.mk curl.rc Makefile.inc CMakeLists.txt .checksrc
+EXTRA_DIST = mkhelp.pl \
+ Makefile.mk curl.rc Makefile.inc CMakeLists.txt
 
 # Use absolute directory to disable VPATH
-ASCIIPAGE=$(top_builddir)/docs/cmdline-opts/curl.txt
+MANPAGE=$(abs_top_builddir)/docs/curl.1
 MKHELP=$(top_srcdir)/src/mkhelp.pl
 HUGE=tool_hugehelp.c
 
@@ -109,24 +108,24 @@ CS_ = $(CS_0)
 if USE_MANUAL
 # Here are the stuff to create a built-in manual
 
-$(ASCIIPAGE):
+$(MANPAGE):
 	cd $(top_builddir)/docs && $(MAKE)
 
 if HAVE_LIBZ
 # This generates the tool_hugehelp.c file in both uncompressed and
 # compressed formats.
-$(HUGE): $(ASCIIPAGE) $(MKHELP)
+$(HUGE): $(MANPAGE) $(MKHELP)
 	$(HUGECMD) (echo '#include "tool_setup.h"' > $(HUGE);   \
 	echo '#ifndef HAVE_LIBZ' >> $(HUGE);                    \
-	$(PERL) $(MKHELP) < $(ASCIIPAGE) >> $(HUGE);     \
+	$(NROFF) $(MANPAGE) | $(PERL) $(MKHELP) >> $(HUGE);     \
 	echo '#else' >> $(HUGE);                                \
-	$(PERL) $(MKHELP) -c < $(ASCIIPAGE) >> $(HUGE);  \
+	$(NROFF) $(MANPAGE) | $(PERL) $(MKHELP) -c >> $(HUGE);  \
 	echo '#endif /* HAVE_LIBZ */' >> $(HUGE) )
 else # HAVE_LIBZ
 # This generates the tool_hugehelp.c file uncompressed only
-$(HUGE): $(ASCIIPAGE) $(MKHELP)
+$(HUGE): $(MANPAGE) $(MKHELP)
 	$(HUGECMD)(echo '#include "tool_setup.h"' > $(HUGE);    \
-	$(PERL) $(MKHELP) < $(ASCIIPAGE) >> $(HUGE) )
+	$(NROFF) $(MANPAGE) | $(PERL) $(MKHELP) >> $(HUGE) )
 endif
 
 else # USE_MANUAL
@@ -135,27 +134,13 @@ $(HUGE):
 	echo '#include "tool_hugehelp.h"' >> $(HUGE)
 endif
 
-CA_EMBED_CSOURCE = tool_ca_embed.c
-CURL_CFILES += $(CA_EMBED_CSOURCE)
-CLEANFILES += $(CA_EMBED_CSOURCE)
-if CURL_CA_EMBED_SET
-AM_CPPFLAGS += -DCURL_CA_EMBED
-MK_FILE_EMBED = $(top_srcdir)/src/mk-file-embed.pl
-$(CA_EMBED_CSOURCE): $(MK_FILE_EMBED)
-	$(PERL) $(MK_FILE_EMBED) --var curl_ca_embed < $(CURL_CA_EMBED) > $(CA_EMBED_CSOURCE)
-else
-$(CA_EMBED_CSOURCE):
-	echo 'extern const void *curl_ca_embed; const void *curl_ca_embed;' > $(CA_EMBED_CSOURCE)
-endif
-
-# ignore generated C files since they play by slightly different rules!
+# ignore tool_hugehelp.c since it is generated source code and it plays
+# by slightly different rules!
 checksrc:
 	$(CHECKSRC)(@PERL@ $(top_srcdir)/scripts/checksrc.pl -D$(srcdir) \
-	  -W$(srcdir)/$(HUGE) \
-	  -W$(srcdir)/$(CA_EMBED_CSOURCE) \
-	  $(srcdir)/*.[ch])
+	-W$(srcdir)/tool_hugehelp.c $(srcdir)/*.[ch])
 
-if DEBUGBUILD
+if CURLDEBUG
 # for debug builds, we scan the sources on all regular make invokes
 all-local: checksrc
 endif
@@ -169,7 +154,7 @@ tidy:
 	$(TIDY) $(CURL_CFILES) $(TIDYFLAGS) -- $(curl_CPPFLAGS) $(CPPFLAGS) -DHAVE_CONFIG_H
 
 listhelp:
-	(cd $(top_srcdir)/docs/cmdline-opts && make listhelp)
+	(cd $(top_srcdir)/docs/cmdline-opts && ./gen.pl listhelp *.d) > tool_listhelp.c
 
 if HAVE_WINDRES
 .rc.o:

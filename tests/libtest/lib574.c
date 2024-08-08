@@ -25,20 +25,18 @@
 
 #include "memdebug.h"
 
-#define TEST_HANG_TIMEOUT (60 * 1000)
-
 static int new_fnmatch(void *ptr,
                        const char *pattern, const char *string)
 {
   (void)ptr;
-  fprintf(stderr, "lib574: match string '%s' against pattern '%s'\n",
-          string, pattern);
+  (void)pattern;
+  (void)string;
   return CURL_FNMATCHFUNC_MATCH;
 }
 
-CURLcode test(char *URL)
+int test(char *URL)
 {
-  CURLcode res;
+  int res;
   CURL *curl;
 
   if(curl_global_init(CURL_GLOBAL_ALL) != CURLE_OK) {
@@ -56,7 +54,6 @@ CURLcode test(char *URL)
   test_setopt(curl, CURLOPT_URL, URL);
   test_setopt(curl, CURLOPT_WILDCARDMATCH, 1L);
   test_setopt(curl, CURLOPT_FNMATCH_FUNCTION, new_fnmatch);
-  test_setopt(curl, CURLOPT_TIMEOUT_MS, (long) TEST_HANG_TIMEOUT);
 
   res = curl_easy_perform(curl);
   if(res) {

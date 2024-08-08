@@ -39,6 +39,13 @@
 
 extern FILE *tool_stderr;
 
+#if !defined(CURL_DO_NOT_OVERRIDE_STDERR) && !defined(UNITTESTS)
+#ifdef stderr
+#undef stderr
+#endif
+#define stderr tool_stderr
+#endif
+
 /*
  * curl tool certainly uses libcurl's external interface.
  */
@@ -65,26 +72,5 @@ extern FILE *tool_stderr;
 #ifndef HAVE_STRDUP
 #  include "tool_strdup.h"
 #endif
-
-#if defined(_WIN32)
-/* set in win32_init() */
-extern LARGE_INTEGER tool_freq;
-extern bool tool_isVistaOrGreater;
-/* set in init_terminal() */
-extern bool tool_term_has_bold;
-#endif
-
-#if defined(_WIN32) && !defined(HAVE_FTRUNCATE)
-
-int tool_ftruncate64(int fd, curl_off_t where);
-
-#undef  ftruncate
-#define ftruncate(fd,where) tool_ftruncate64(fd,where)
-
-#define HAVE_FTRUNCATE 1
-#define USE_TOOL_FTRUNCATE 1
-
-#endif /* _WIN32 && ! HAVE_FTRUNCATE */
-
 
 #endif /* HEADER_CURL_TOOL_SETUP_H */

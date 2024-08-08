@@ -25,6 +25,7 @@
  * Websockets pingpong
  * </DESC>
  */
+
 /* curl stuff */
 #include "curl_setup.h"
 #include <curl/curl.h>
@@ -33,14 +34,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef _WIN32
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include <windows.h>
-#else
+/* somewhat unix-specific */
 #include <sys/time.h>
-#endif
+#include <unistd.h>
 
 #ifdef USE_WEBSOCKETS
 
@@ -56,10 +52,10 @@ static CURLcode ping(CURL *curl, const char *send_payload)
   return result;
 }
 
-static CURLcode recv_pong(CURL *curl, const char *expected_payload)
+static CURLcode recv_pong(CURL *curl, const char *exected_payload)
 {
   size_t rlen;
-  const struct curl_ws_frame *meta;
+  struct curl_ws_frame *meta;
   char buffer[256];
   CURLcode result = curl_ws_recv(curl, buffer, sizeof(buffer), &rlen, &meta);
   if(result) {
@@ -75,8 +71,8 @@ static CURLcode recv_pong(CURL *curl, const char *expected_payload)
   }
 
   fprintf(stderr, "ws: got PONG back\n");
-  if(rlen == strlen(expected_payload) &&
-     !memcmp(expected_payload, buffer, rlen)) {
+  if(rlen == strlen(exected_payload) &&
+     !memcmp(exected_payload, buffer, rlen)) {
     fprintf(stderr, "ws: got the same payload back\n");
     return CURLE_OK;
   }
@@ -106,11 +102,7 @@ static CURLcode pingpong(CURL *curl, const char *payload)
     fprintf(stderr, "Receive pong\n");
     res = recv_pong(curl, payload);
     if(res == CURLE_AGAIN) {
-#ifdef _WIN32
-      Sleep(100);
-#else
       usleep(100*1000);
-#endif
       continue;
     }
     websocket_close(curl);

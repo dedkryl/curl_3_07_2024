@@ -1,15 +1,9 @@
-<!--
-Copyright (C) Daniel Stenberg, <daniel@haxx.se>, et al.
-
-SPDX-License-Identifier: curl
--->
-
 # dynbuf
 
 This is the internal module for creating and handling "dynamic buffers". This
 means buffers that can be appended to, dynamically and grow to adapt.
 
-There is always a terminating zero put at the end of the dynamic buffer.
+There will always be a terminating zero put at the end of the dynamic buffer.
 
 The `struct dynbuf` is used to hold data for each instance of a dynamic
 buffer. The members of that struct **MUST NOT** be accessed or modified
@@ -23,8 +17,8 @@ void Curl_dyn_init(struct dynbuf *s, size_t toobig);
 
 This initializes a struct to use for dynbuf and it cannot fail. The `toobig`
 value **must** be set to the maximum size we allow this buffer instance to
-grow to. The functions below return `CURLE_OUT_OF_MEMORY` when hitting this
-limit.
+grow to. The functions below will return `CURLE_OUT_OF_MEMORY` when hitting
+this limit.
 
 ## `Curl_dyn_free`
 
@@ -33,7 +27,7 @@ void Curl_dyn_free(struct dynbuf *s);
 ```
 
 Free the associated memory and clean up. After a free, the `dynbuf` struct can
-be reused to start appending new data to.
+be re-used to start appending new data to.
 
 ## `Curl_dyn_addn`
 

@@ -59,7 +59,7 @@ CS_ = $(CS_0)
 checksrc:
 	$(CHECKSRC)@PERL@ $(top_srcdir)/scripts/checksrc.pl $(srcdir)/*.[ch]
 
-if DEBUGBUILD
+if CURLDEBUG
 # for debug builds, we scan the sources on all regular make invokes
 all-local: checksrc
 endif

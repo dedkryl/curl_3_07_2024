@@ -22,7 +22,7 @@
  *
  ***************************************************************************/
 /* <DESC>
- * Upload to FTP, resuming failed transfers. Active mode.
+ * Upload to FTP, resuming failed transfers.
  * </DESC>
  */
 
@@ -96,12 +96,8 @@ static int upload(CURL *curlhandle, const char *remotepath,
   curl_easy_setopt(curlhandle, CURLOPT_READFUNCTION, readfunc);
   curl_easy_setopt(curlhandle, CURLOPT_READDATA, f);
 
-  /* enable active mode */
+  /* disable passive mode */
   curl_easy_setopt(curlhandle, CURLOPT_FTPPORT, "-");
-
-  /* allow the server no more than 7 seconds to connect back */
-  curl_easy_setopt(curlhandle, CURLOPT_ACCEPTTIMEOUT_MS, 7000L);
-
   curl_easy_setopt(curlhandle, CURLOPT_FTP_CREATE_MISSING_DIRS, 1L);
 
   curl_easy_setopt(curlhandle, CURLOPT_VERBOSE, 1L);
@@ -112,10 +108,12 @@ static int upload(CURL *curlhandle, const char *remotepath,
       /* determine the length of the file already written */
 
       /*
-       * With NOBODY and NOHEADER, libcurl issues a SIZE command, but the only
-       * way to retrieve the result is to parse the returned Content-Length
-       * header. Thus, getcontentlengthfunc(). We need discardfunc() above
-       * because HEADER dumps the headers to stdout without it.
+       * With NOBODY and NOHEADER, libcurl will issue a SIZE
+       * command, but the only way to retrieve the result is
+       * to parse the returned Content-Length header. Thus,
+       * getcontentlengthfunc(). We need discardfunc() above
+       * because HEADER will dump the headers to stdout
+       * without it.
        */
       curl_easy_setopt(curlhandle, CURLOPT_NOBODY, 1L);
       curl_easy_setopt(curlhandle, CURLOPT_HEADER, 1L);

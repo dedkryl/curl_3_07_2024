@@ -25,6 +25,7 @@
  * Websockets data echos
  * </DESC>
  */
+
 /* curl stuff */
 #include "curl_setup.h"
 #include <curl/curl.h>
@@ -33,16 +34,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef USE_WEBSOCKETS
-
-#ifdef _WIN32
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include <windows.h>
-#else
+/* somewhat unix-specific */
 #include <sys/time.h>
-#endif
+#include <unistd.h>
+
+#ifdef USE_WEBSOCKETS
 
 static
 void dump(const char *text, unsigned char *ptr, size_t size,
@@ -105,7 +101,7 @@ static CURLcode send_binary(CURL *curl, char *buf, size_t buflen)
 
 static CURLcode recv_binary(CURL *curl, char *exp_data, size_t exp_len)
 {
-  const struct curl_ws_frame *frame;
+  struct curl_ws_frame *frame;
   char recvbuf[256];
   size_t r_offset, nread;
   CURLcode result;
@@ -116,11 +112,7 @@ static CURLcode recv_binary(CURL *curl, char *exp_data, size_t exp_len)
     result = curl_ws_recv(curl, recvbuf, sizeof(recvbuf), &nread, &frame);
     if(result == CURLE_AGAIN) {
       fprintf(stderr, "EAGAIN, sleep, try again\n");
-#ifdef _WIN32
-      Sleep(100);
-#else
       usleep(100*1000);
-#endif
       continue;
     }
     fprintf(stderr, "ws: curl_ws_recv(offset=%ld, len=%ld) -> %d, %ld\n",
@@ -176,7 +168,7 @@ static void websocket_close(CURL *curl)
 
 static CURLcode data_echo(CURL *curl, size_t plen_min, size_t plen_max)
 {
-  CURLcode res = CURLE_OK;
+  CURLcode res;
   size_t len;
   char *send_buf;
   size_t i;
@@ -214,7 +206,7 @@ int main(int argc, char *argv[])
   CURL *curl;
   CURLcode res = CURLE_OK;
   const char *url;
-  long l1, l2;
+  curl_off_t l1, l2;
   size_t plen_min, plen_max;
 
 
@@ -225,12 +217,12 @@ int main(int argc, char *argv[])
   url = argv[1];
   l1 = strtol(argv[2], NULL, 10);
   if(l1 < 0) {
-    fprintf(stderr, "minlen must be >= 0, got %ld\n", l1);
+    fprintf(stderr, "minlen must be >= 0, got %ld\n", (long)l1);
     return 2;
   }
   l2 = strtol(argv[3], NULL, 10);
   if(l2 < 0) {
-    fprintf(stderr, "maxlen must be >= 0, got %ld\n", l2);
+    fprintf(stderr, "maxlen must be >= 0, got %ld\n", (long)l2);
     return 2;
   }
   plen_min = l1;

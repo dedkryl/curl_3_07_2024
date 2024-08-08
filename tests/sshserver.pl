@@ -437,7 +437,7 @@ if((! -e pp($hstprvkeyf)) || (! -s pp($hstprvkeyf)) ||
 
 
 #***************************************************************************
-# Convert paths for curl's tests running on Windows with Cygwin/MSYS OpenSSH
+# Convert paths for curl's tests running on Windows with Cygwin/Msys OpenSSH
 #
 my $clipubkeyf_config;
 my $hstprvkeyf_config;
@@ -847,8 +847,8 @@ if ($sshdid =~ /OpenSSH-Windows/) {
 }
 elsif (pathhelp::os_is_win()) {
     # Ensure to use MinGW/Cygwin paths
-    $identity_config = pathhelp::build_sys_abs_path($identity);
-    $knownhosts_config = pathhelp::build_sys_abs_path($knownhosts);
+    $identity_config = pathhelp::build_sys_abs_path($identity_config);
+    $knownhosts_config = pathhelp::build_sys_abs_path($knownhosts_config);
 }
 else {
     $identity_config = abs_path(pp($identity));
@@ -1175,8 +1175,7 @@ if ($sshdid =~ /OpenSSH-Windows/) {
 #***************************************************************************
 # Start the ssh server daemon without forking it
 #
-# "exec" avoids the shell process sticking around
-my $rc = system("exec " . $cmd);
+my $rc = system($cmd);
 if($rc == -1) {
     logmsg "\"$sshd\" failed with: $!\n";
 }

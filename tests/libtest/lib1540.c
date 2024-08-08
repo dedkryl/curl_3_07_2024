@@ -76,16 +76,16 @@ static size_t write_callback(void *ptr, size_t size, size_t nmemb, void *userp)
     fwrite(ptr, size, nmemb, stdout);
     return len;
   }
-  if(len)
-    printf("Got bytes but pausing!\n");
+  printf("Got %d bytes but pausing!\n", (int)len);
   st->halted = 1;
   return CURL_WRITEFUNC_PAUSE;
 }
 
-CURLcode test(char *URL)
+int test(char *URL)
 {
   CURL *curls = NULL;
-  CURLcode res = CURLE_OK;
+  int i = 0;
+  int res = 0;
   struct transfer_status st;
 
   start_test_timing();
@@ -114,5 +114,8 @@ test_cleanup:
   curl_easy_cleanup(curls);
   curl_global_cleanup();
 
-  return res; /* return the final return code */
+  if(res)
+    i = res;
+
+  return i; /* return the final return code */
 }

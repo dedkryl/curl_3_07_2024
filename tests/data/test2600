@@ -2,8 +2,7 @@
 <info>
 <keywords>
 unittest
-cfilter
-timing-dependent
+llist
 </keywords>
 </info>
 
@@ -15,12 +14,11 @@ none
 </server>
 <features>
 unittest
-Debug
+debug
 http
-!win32
 </features>
-<name>
-connection filter connect/destroy unit tests
-</name>
+ <name>
+llist unit tests
+ </name>
 </client>
 </testcase>

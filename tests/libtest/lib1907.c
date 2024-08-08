@@ -27,11 +27,11 @@
 #include "warnless.h"
 #include "memdebug.h"
 
-CURLcode test(char *URL)
+int test(char *URL)
 {
   char *url_after;
   CURL *curl;
-  CURLcode res = CURLE_OK;
+  CURLcode curl_code;
   char error_buffer[CURL_ERROR_SIZE] = "";
 
   curl_global_init(CURL_GLOBAL_DEFAULT);
@@ -39,11 +39,11 @@ CURLcode test(char *URL)
   curl_easy_setopt(curl, CURLOPT_URL, URL);
   curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buffer);
   curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
-  res = curl_easy_perform(curl);
-  if(!res)
+  curl_code = curl_easy_perform(curl);
+  if(!curl_code)
     fprintf(stderr, "failure expected, "
             "curl_easy_perform returned %ld: <%s>, <%s>\n",
-            (long) res, curl_easy_strerror(res), error_buffer);
+            (long) curl_code, curl_easy_strerror(curl_code), error_buffer);
 
   /* print the used url */
   if(!curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &url_after))
@@ -52,5 +52,5 @@ CURLcode test(char *URL)
   curl_easy_cleanup(curl);
   curl_global_cleanup();
 
-  return res;
+  return 0;
 }

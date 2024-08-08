@@ -1,9 +1,3 @@
-<!--
-Copyright (C) Daniel Stenberg, <daniel@haxx.se>, et al.
-
-SPDX-License-Identifier: curl
--->
-
 # HTTP Cookies
 
 ## Cookie overview
@@ -15,7 +9,7 @@ SPDX-License-Identifier: curl
   Cookies are either "session cookies" which typically are forgotten when the
   session is over which is often translated to equal when browser quits, or
   the cookies are not session cookies they have expiration dates after which
-  the client throws them away.
+  the client will throw them away.
 
   Cookies are set to the client with the Set-Cookie: header and are sent to
   servers with the Cookie: header.
@@ -23,7 +17,7 @@ SPDX-License-Identifier: curl
   For a long time, the only spec explaining how to use cookies was the
   original [Netscape spec from 1994](https://curl.se/rfc/cookie_spec.html).
 
-  In 2011, [RFC 6265](https://www.ietf.org/rfc/rfc6265.txt) was finally
+  In 2011, [RFC6265](https://www.ietf.org/rfc/rfc6265.txt) was finally
   published and details how cookies work within HTTP. In 2016, an update which
   added support for prefixes was
   [proposed](https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-cookie-prefixes-00),
@@ -32,32 +26,13 @@ SPDX-License-Identifier: curl
   to deprecate modification of 'secure' cookies from non-secure origins. Both
   of these drafts have been incorporated into a proposal to
   [replace](https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-11)
-  RFC 6265. Cookie prefixes and secure cookie modification protection has been
+  RFC6265. Cookie prefixes and secure cookie modification protection has been
   implemented by curl.
 
   curl considers `http://localhost` to be a *secure context*, meaning that it
-  allows and uses cookies marked with the `secure` keyword even when done over
-  plain HTTP for this host. curl does this to match how popular browsers work
-  with secure cookies.
-
-## Super cookies
-
-  A single cookie can be set for a domain that matches multiple hosts. Like if
-  set for `example.com` it gets sent to both `aa.example.com` as well as
-  `bb.example.com`.
-
-  A challenge with this concept is that there are certain domains for which
-  cookies should not be allowed at all, because they are *Public
-  Suffixes*. Similarly, a client never accepts cookies set directly for the
-  top-level domain like for example `.com`. Cookies set for *too broad*
-  domains are generally referred to as *super cookies*.
-
-  If curl is built with PSL (**Public Suffix List**) support, it detects and
-  discards cookies that are specified for such suffix domains that should not
-  be allowed to have cookies.
-
-  if curl is *not* built with PSL support, it has no ability to stop super
-  cookies.
+  will allow and use cookies marked with the `secure` keyword even when done
+  over plain HTTP for this host. curl does this to match how popular browsers
+  work with secure cookies.
 
 ## Cookies saved to disk
 
@@ -71,7 +46,8 @@ SPDX-License-Identifier: curl
   TAB. That file is called the cookie jar in curl terminology.
 
   When libcurl saves a cookie jar, it creates a file header of its own in
-  which there is a URL mention that links to the web version of this document.
+  which there is a URL mention that will link to the web version of this
+  document.
 
 ## Cookie file format
 
@@ -106,13 +82,13 @@ SPDX-License-Identifier: curl
   `-b, --cookie`
 
   tell curl a file to read cookies from and start the cookie engine, or if it
-  is not a file it passes on the given string. `-b name=var` works and so does
-  `-b cookiefile`.
+  is not a file it will pass on the given string. `-b name=var` works and so
+  does `-b cookiefile`.
 
   `-j, --junk-session-cookies`
 
-  when used in combination with -b, it skips all "session cookies" on load so
-  as to appear to start a new cookie session.
+  when used in combination with -b, it will skip all "session cookies" on load
+  so as to appear to start a new cookie session.
 
   `-c, --cookie-jar`
 
@@ -164,7 +140,7 @@ SPDX-License-Identifier: curl
   can also set and access cookies.
 
   Since curl and libcurl are plain HTTP clients without any knowledge of or
-  capability to handle JavaScript, such cookies are not detected or used.
+  capability to handle JavaScript, such cookies will not be detected or used.
 
   Often, if you want to mimic what a browser does on such websites, you can
   record web browser HTTP traffic when using such a site and then repeat the

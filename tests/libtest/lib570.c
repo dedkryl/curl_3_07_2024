@@ -30,9 +30,9 @@ static char *suburl(const char *base, int i)
   return curl_maprintf("%s%.4d", base, i);
 }
 
-CURLcode test(char *URL)
+int test(char *URL)
 {
-  CURLcode res;
+  int res;
   CURL *curl;
   int request = 1;
   char *stream_uri = NULL;
@@ -63,7 +63,7 @@ CURLcode test(char *URL)
     goto test_cleanup;
   }
   test_setopt(curl, CURLOPT_RTSP_STREAM_URI, stream_uri);
-  curl_free(stream_uri);
+  free(stream_uri);
   stream_uri = NULL;
 
   res = curl_easy_perform(curl);
@@ -84,7 +84,7 @@ CURLcode test(char *URL)
     goto test_cleanup;
   }
   test_setopt(curl, CURLOPT_RTSP_STREAM_URI, stream_uri);
-  curl_free(stream_uri);
+  free(stream_uri);
   stream_uri = NULL;
 
   res = curl_easy_perform(curl);
@@ -99,20 +99,20 @@ CURLcode test(char *URL)
     goto test_cleanup;
   }
   test_setopt(curl, CURLOPT_RTSP_STREAM_URI, stream_uri);
-  curl_free(stream_uri);
+  free(stream_uri);
   stream_uri = NULL;
 
   res = curl_easy_perform(curl);
   if(res == CURLE_RTSP_SESSION_ERROR) {
-    res = CURLE_OK;
+    res = 0;
   }
   else {
     fprintf(stderr, "Failed to detect a Session ID mismatch");
-    res = (CURLcode)1;
+    res = 1;
   }
 
 test_cleanup:
-  curl_free(stream_uri);
+  free(stream_uri);
 
   curl_easy_cleanup(curl);
   curl_global_cleanup();

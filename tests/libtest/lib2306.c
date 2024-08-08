@@ -29,26 +29,21 @@
 
 #define URL2 libtest_arg2
 
-CURLcode test(char *URL)
+int test(char *URL)
 {
   /* first a fine GET response, then a bad one */
   CURL *cl;
-  CURLcode res = CURLE_OK;
+  int res = 0;
 
   global_init(CURL_GLOBAL_ALL);
 
-  easy_init(cl);
-  easy_setopt(cl, CURLOPT_URL, URL);
-  easy_setopt(cl, CURLOPT_VERBOSE, 1L);
-  res = curl_easy_perform(cl);
-  if(res)
-    goto test_cleanup;
+  cl = curl_easy_init();
+  curl_easy_setopt(cl, CURLOPT_URL, URL);
+  curl_easy_perform(cl);
 
-  /* reuse handle, do a second transfer */
-  easy_setopt(cl, CURLOPT_URL, URL2);
-  res = curl_easy_perform(cl);
-
-test_cleanup:
+  /* re-use handle, do a second transfer */
+  curl_easy_setopt(cl, CURLOPT_URL, URL2);
+  curl_easy_perform(cl);
   curl_easy_cleanup(cl);
   curl_global_cleanup();
   return res;

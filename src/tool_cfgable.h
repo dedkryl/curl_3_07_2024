@@ -26,7 +26,7 @@
 #include "tool_setup.h"
 #include "tool_sdecls.h"
 #include "tool_urlglob.h"
-#include "var.h"
+#include "tool_formparse.h"
 
 struct GlobalConfig;
 
@@ -37,11 +37,11 @@ struct State {
   char *outfiles;
   char *httpgetfields;
   char *uploadfile;
-  curl_off_t infilenum; /* number of files to upload */
-  curl_off_t up;        /* upload file counter within a single upload glob */
-  curl_off_t urlnum;    /* how many iterations this single URL has with ranges
+  unsigned long infilenum; /* number of files to upload */
+  unsigned long up;  /* upload file counter within a single upload glob */
+  unsigned long urlnum; /* how many iterations this single URL has with ranges
                            etc */
-  curl_off_t li;
+  unsigned long li;
 };
 
 struct OperationConfig {
@@ -50,8 +50,8 @@ struct OperationConfig {
   struct curl_slist *cookies;  /* cookies to serialize into a single line */
   char *cookiejar;          /* write to this file */
   struct curl_slist *cookiefiles;  /* file(s) to load cookies from */
-  char *altsvc;             /* alt-svc cache filename */
-  char *hsts;               /* HSTS cache filename */
+  char *altsvc;             /* alt-svc cache file name */
+  char *hsts;               /* HSTS cache file name */
   bool cookiesession;       /* new session? */
   bool encoding;            /* Accept-Encoding please */
   bool tr_encoding;         /* Transfer-Encoding please */
@@ -68,7 +68,7 @@ struct OperationConfig {
   char *proto_default;
   curl_off_t resume_from;
   char *postfields;
-  struct curlx_dynbuf postdata;
+  curl_off_t postfieldsize;
   char *referer;
   char *query;
   long timeout_ms;
@@ -85,8 +85,6 @@ struct OperationConfig {
   char *range;
   long low_speed_limit;
   long low_speed_time;
-  long ip_tos;         /* IP Type of Service */
-  long vlan_priority;  /* VLAN priority */
   char *dns_servers;   /* dot notation: 1.1.1.1;2.2.2.2 */
   char *dns_interface; /* interface name */
   char *dns_ipv4_addr; /* dot notation */
@@ -116,11 +114,11 @@ struct OperationConfig {
   bool failonerror;         /* fail on (HTTP) errors */
   bool failwithbody;        /* fail on (HTTP) errors but still store body */
   bool show_headers;        /* show headers to data output */
-  bool no_body;             /* do not get the body */
+  bool no_body;             /* don't get the body */
   bool dirlistonly;         /* only get the FTP dir list */
   bool followlocation;      /* follow http redirects */
   bool unrestricted_auth;   /* Continue to send authentication (user+password)
-                               when following redirects, even when hostname
+                               when following ocations, even when hostname
                                changed */
   bool netrc_opt;
   bool netrc;
@@ -130,7 +128,6 @@ struct OperationConfig {
   struct getout *url_get;   /* point to the node to fill in URL */
   struct getout *url_out;   /* point to the node to fill in outfile */
   struct getout *url_ul;    /* point to the node to fill in upload */
-  char *ipfs_gateway;
   char *doh_url;
   char *cipher_list;
   char *proxy_cipher_list;
@@ -163,8 +160,12 @@ struct OperationConfig {
   bool crlf;
   char *customrequest;
   char *ssl_ec_curves;
+  char *ssl_sig_hash_algs;
+  char *ssl_cert_compression;
   char *krblevel;
   char *request_target;
+  char *http2_pseudo_headers_order;
+  bool http2_no_server_push;
   long httpversion;
   bool http09_allowed;
   bool nobuffer;
@@ -194,6 +195,7 @@ struct OperationConfig {
   struct curl_slist *prequote;
   long ssl_version;
   long ssl_version_max;
+  bool ssl_permute_extensions;
   long proxy_ssl_version;
   long ip_version;
   long create_file_mode; /* CURLOPT_NEW_FILE_PERMS */
@@ -249,8 +251,7 @@ struct OperationConfig {
   bool post302;
   bool post303;
   bool nokeepalive;         /* for keepalive needs */
-  long alivetime;           /* keepalive-time */
-  long alivecnt;            /* keepalive-cnt */
+  long alivetime;
   bool content_disposition; /* use Content-disposition filename */
 
   int default_node_flags;   /* default flags to search for each 'node', which
@@ -264,13 +265,14 @@ struct OperationConfig {
   bool ssl_revoke_best_effort; /* ignore SSL revocation offline/missing
                                   revocation list errors */
 
-  bool native_ca_store;        /* use the native OS CA store */
-  bool proxy_native_ca_store;  /* use the native OS CA store for proxy */
+  bool native_ca_store;        /* use the native os ca store */
   bool ssl_auto_client_cert;   /* automatically locate and use a client
                                   certificate for authentication (Schannel) */
   bool proxy_ssl_auto_client_cert; /* proxy version of ssl_auto_client_cert */
   char *oauth_bearer;             /* OAuth 2.0 bearer token */
   bool noalpn;                    /* enable/disable TLS ALPN extension */
+  bool alps;                      /* enable/disable TLS ALPS extension */
+  bool noticket;                  /* enable/disable TLS session ticket */
   char *unix_socket_path;         /* path to Unix domain socket */
   bool abstract_unix_socket;      /* path to an abstract Unix domain socket */
   bool falsestart;
@@ -283,7 +285,6 @@ struct OperationConfig {
   long happy_eyeballs_timeout_ms; /* happy eyeballs timeout in milliseconds.
                                      0 is valid. default: CURL_HET_DEFAULT. */
   bool haproxy_protocol;          /* whether to send HAProxy protocol v1 */
-  char *haproxy_clientip;         /* client IP for HAProxy protocol */
   bool disallow_username_in_url;  /* disallow usernames in URLs */
   char *aws_sigv4;
   enum {
@@ -295,48 +296,37 @@ struct OperationConfig {
     CLOBBER_NEVER, /* If the file exists, always fail */
     CLOBBER_ALWAYS /* If the file exists, always overwrite it */
   } file_clobber_mode;
-  bool mptcp;                     /* enable MPTCP support */
   struct GlobalConfig *global;
   struct OperationConfig *prev;
   struct OperationConfig *next;   /* Always last in the struct */
   struct State state;             /* for create_transfer() */
   bool rm_partial;                /* on error, remove partially written output
                                      files */
-  bool skip_existing;
-#ifdef USE_ECH
-  char *ech;                      /* Config set by --ech keywords */
-  char *ech_config;               /* Config set by "--ech esl:" option */
-  char *ech_public;               /* Config set by "--ech pn:" option */
-#endif
-
 };
 
 struct GlobalConfig {
   bool showerror;                 /* show errors when silent */
-  bool silent;                    /* do not show messages, --silent given */
-  bool noprogress;                /* do not show progress bar */
+  bool silent;                    /* don't show messages, --silent given */
+  bool noprogress;                /* don't show progress bar */
   bool isatty;                    /* Updated internally if output is a tty */
-  unsigned char verbosity;        /* How verbose we should be */
   char *trace_dump;               /* file to dump the network trace to */
   FILE *trace_stream;
   bool trace_fopened;
   trace tracetype;
   bool tracetime;                 /* include timestamp? */
-  bool traceids;                  /* include xfer-/conn-id? */
   int progressmode;               /* CURL_PROGRESS_BAR / CURL_PROGRESS_STATS */
-  char *libcurl;                  /* Output libcurl code to this filename */
+  char *libcurl;                  /* Output libcurl code to this file name */
   bool fail_early;                /* exit on first transfer error */
   bool styled_output;             /* enable fancy output style detection */
   long ms_per_transfer;           /* start next transfer after (at least) this
                                      many milliseconds */
-#ifdef DEBUGBUILD
+#ifdef CURLDEBUG
   bool test_event_based;
 #endif
   bool parallel;
-  unsigned short parallel_max; /* MAX_PARALLEL is the maximum */
+  long parallel_max;
   bool parallel_connect;
   char *help_category;            /* The help category, if set */
-  struct var *variables;
   struct OperationConfig *first;
   struct OperationConfig *current;
   struct OperationConfig *last;   /* Always last in the struct */

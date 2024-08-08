@@ -157,7 +157,7 @@ static CURLcode sslctx_function(CURL *curl, void *sslctx, void *parm)
     printf("Use Key failed\n");
   }
 
-  /* free resources that have been allocated by OpenSSL functions */
+  /* free resources that have been allocated by openssl functions */
   if(bio)
     BIO_free(bio);
 
@@ -199,7 +199,8 @@ int main(void)
   curl_easy_setopt(ch, CURLOPT_URL, "https://www.example.com/");
   curl_easy_setopt(ch, CURLOPT_SSLKEYTYPE, "PEM");
 
-  /* first try: retrieve page without user certificate and key -> fails */
+  /* first try: retrieve page without user certificate and key -> will fail
+   */
   rv = curl_easy_perform(ch);
   if(rv == CURLE_OK) {
     printf("*** transfer succeeded ***\n");
@@ -208,7 +209,7 @@ int main(void)
     printf("*** transfer failed ***\n");
   }
 
-  /* second try: retrieve page using user certificate and key -> succeeds
+  /* second try: retrieve page using user certificate and key -> will succeed
    * load the certificate and key by installing a function doing the necessary
    * "modifications" to the SSL CONTEXT just before link init
    */

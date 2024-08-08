@@ -129,9 +129,9 @@ static void *fire(void *ptr)
 }
 
 /* test function */
-CURLcode test(char *URL)
+int test(char *URL)
 {
-  CURLcode res = CURLE_OK;
+  int res;
   CURLSHcode scode = CURLSHE_OK;
   char *url;
   struct Tdata tdata;
@@ -184,6 +184,8 @@ CURLcode test(char *URL)
   }
 
 
+  res = 0;
+
   /* start treads */
   for(i = 1; i <= THREADS; i++) {
 
@@ -197,7 +199,7 @@ CURLcode test(char *URL)
   }
 
 
-  /* fetch another one */
+  /* fetch a another one */
   printf("*** run %d\n", i);
   curl = curl_easy_init();
   if(!curl) {
@@ -213,7 +215,7 @@ CURLcode test(char *URL)
   test_setopt(curl, CURLOPT_SHARE, share);
 
   printf("PERFORM\n");
-  res = curl_easy_perform(curl);
+  curl_easy_perform(curl);
 
   /* try to free share, expect to fail because share is in use */
   printf("try SHARE_CLEANUP...\n");

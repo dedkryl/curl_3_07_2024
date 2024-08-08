@@ -24,10 +24,11 @@
 
 #include "timeval.h"
 
-#if defined(_WIN32)
+#if defined(WIN32) && !defined(MSDOS)
 
-#include <curl/curl.h>
-#include "system_win32.h"
+/* set in win32_init() */
+extern LARGE_INTEGER Curl_freq;
+extern bool Curl_isVistaOrGreater;
 
 /* In case of bug fix this function has a counterpart in tool_util.c */
 struct curltime Curl_now(void)
@@ -51,14 +52,13 @@ struct curltime Curl_now(void)
 #pragma warning(pop)
 #endif
 
-    now.tv_sec = (time_t)(milliseconds / 1000);
-    now.tv_usec = (int)((milliseconds % 1000) * 1000);
+    now.tv_sec = milliseconds / 1000;
+    now.tv_usec = (milliseconds % 1000) * 1000;
   }
   return now;
 }
 
-#elif defined(HAVE_CLOCK_GETTIME_MONOTONIC) ||  \
-  defined(HAVE_CLOCK_GETTIME_MONOTONIC_RAW)
+#elif defined(HAVE_CLOCK_GETTIME_MONOTONIC)
 
 struct curltime Curl_now(void)
 {
@@ -77,7 +77,7 @@ struct curltime Curl_now(void)
 
   /*
   ** clock_gettime() may be defined by Apple's SDK as weak symbol thus
-  ** code compiles but fails during runtime if clock_gettime() is
+  ** code compiles but fails during run-time if clock_gettime() is
   ** called on unsupported OS version.
   */
 #if defined(__APPLE__) && defined(HAVE_BUILTIN_AVAILABLE) && \
@@ -87,19 +87,6 @@ struct curltime Curl_now(void)
     have_clock_gettime = TRUE;
 #endif
 
-#ifdef HAVE_CLOCK_GETTIME_MONOTONIC_RAW
-  if(
-#if defined(__APPLE__) && defined(HAVE_BUILTIN_AVAILABLE) &&    \
-        (HAVE_BUILTIN_AVAILABLE == 1)
-    have_clock_gettime &&
-#endif
-    (0 == clock_gettime(CLOCK_MONOTONIC_RAW, &tsnow))) {
-    cnow.tv_sec = tsnow.tv_sec;
-    cnow.tv_usec = (int)(tsnow.tv_nsec / 1000);
-  }
-  else
-#endif
-
   if(
 #if defined(__APPLE__) && defined(HAVE_BUILTIN_AVAILABLE) && \
         (HAVE_BUILTIN_AVAILABLE == 1)
@@ -107,18 +94,18 @@ struct curltime Curl_now(void)
 #endif
     (0 == clock_gettime(CLOCK_MONOTONIC, &tsnow))) {
     cnow.tv_sec = tsnow.tv_sec;
-    cnow.tv_usec = (int)(tsnow.tv_nsec / 1000);
+    cnow.tv_usec = (unsigned int)(tsnow.tv_nsec / 1000);
   }
   /*
   ** Even when the configure process has truly detected monotonic clock
   ** availability, it might happen that it is not actually available at
-  ** runtime. When this occurs simply fallback to other time source.
+  ** run-time. When this occurs simply fallback to other time source.
   */
 #ifdef HAVE_GETTIMEOFDAY
   else {
     (void)gettimeofday(&now, NULL);
     cnow.tv_sec = now.tv_sec;
-    cnow.tv_usec = (int)now.tv_usec;
+    cnow.tv_usec = (unsigned int)now.tv_usec;
   }
 #else
   else {
@@ -137,7 +124,7 @@ struct curltime Curl_now(void)
 struct curltime Curl_now(void)
 {
   /*
-  ** Monotonic timer on macOS is provided by mach_absolute_time(), which
+  ** Monotonic timer on Mac OS is provided by mach_absolute_time(), which
   ** returns time in Mach "absolute time units," which are platform-dependent.
   ** To convert to nanoseconds, one must use conversion factors specified by
   ** mach_timebase_info().
@@ -206,20 +193,6 @@ timediff_t Curl_timediff(struct curltime newer, struct curltime older)
   else if(diff <= (TIMEDIFF_T_MIN/1000))
     return TIMEDIFF_T_MIN;
   return diff * 1000 + (newer.tv_usec-older.tv_usec)/1000;
-}
-
-/*
- * Returns: time difference in number of milliseconds, rounded up.
- * For too large diffs it returns max value.
- */
-timediff_t Curl_timediff_ceil(struct curltime newer, struct curltime older)
-{
-  timediff_t diff = (timediff_t)newer.tv_sec-older.tv_sec;
-  if(diff >= (TIMEDIFF_T_MAX/1000))
-    return TIMEDIFF_T_MAX;
-  else if(diff <= (TIMEDIFF_T_MIN/1000))
-    return TIMEDIFF_T_MIN;
-  return diff * 1000 + (newer.tv_usec - older.tv_usec + 999)/1000;
 }
 
 /*

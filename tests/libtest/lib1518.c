@@ -37,7 +37,7 @@ static size_t writecb(char *buffer, size_t size, size_t nitems,
   return 0;
 }
 
-CURLcode test(char *URL)
+int test(char *URL)
 {
   CURL *curl;
   CURLcode res = CURLE_OK;
@@ -81,16 +81,16 @@ CURLcode test(char *URL)
   curl_easy_getinfo(curl, CURLINFO_REDIRECT_COUNT, &curlRedirectCount);
   curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &effectiveUrl);
   curl_easy_getinfo(curl, CURLINFO_REDIRECT_URL, &redirectUrl);
-  test_setopt(curl, CURLOPT_WRITEFUNCTION, writecb);
+  res = curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writecb);
 
   printf("res %d\n"
-         "status %ld\n"
-         "redirects %ld\n"
+         "status %d\n"
+         "redirects %d\n"
          "effectiveurl %s\n"
          "redirecturl %s\n",
-         res,
-         curlResponseCode,
-         curlRedirectCount,
+         (int)res,
+         (int)curlResponseCode,
+         (int)curlRedirectCount,
          effectiveUrl,
          redirectUrl ? redirectUrl : "blank");
 

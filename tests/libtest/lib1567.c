@@ -27,33 +27,28 @@
 
 #include <curl/multi.h>
 
-CURLcode test(char *URL)
+int test(char *URL)
 {
-  CURL *curl = NULL;
+  CURL *curl;
   CURLcode res = CURLE_OK;
-  CURLU *u = NULL;
 
   global_init(CURL_GLOBAL_ALL);
   curl = curl_easy_init();
   if(curl) {
-    u = curl_url();
+    CURLU *u = curl_url();
     if(u) {
       curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
       curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
       curl_url_set(u, CURLUPART_URL, URL, 0);
       curl_easy_setopt(curl, CURLOPT_CURLU, u);
       res = curl_easy_perform(curl);
-      if(res)
-        goto test_cleanup;
 
       fprintf(stderr, "****************************** Do it again\n");
       res = curl_easy_perform(curl);
+      curl_url_cleanup(u);
     }
+    curl_easy_cleanup(curl);
   }
-
-test_cleanup:
-  curl_url_cleanup(u);
-  curl_easy_cleanup(curl);
   curl_global_cleanup();
-  return res;
+  return (int)res;
 }

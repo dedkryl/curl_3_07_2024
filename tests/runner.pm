@@ -89,7 +89,6 @@ use processhelp qw(
 use servers qw(
     checkcmd
     clearlocks
-    initserverconfig
     serverfortest
     stopserver
     stopservers
@@ -105,7 +104,6 @@ use testutil qw(
     subbase64
     subnewlines
     );
-use valgrind;
 
 
 #######################################################################
@@ -115,7 +113,7 @@ our $DBGCURL=$CURL; #"../src/.libs/curl";  # alternative for debugging
 our $valgrind_logfile="--log-file";  # the option name for valgrind >=3
 our $valgrind_tool="--tool=memcheck";
 our $gdb = checktestcmd("gdb");
-our $gdbthis = 0;  # run test case with debugger (gdb or lldb)
+our $gdbthis;      # run test case with gdb debugger
 our $gdbxwin;      # use windowed gdb when using gdb
 
 # torture test variables
@@ -126,7 +124,8 @@ our $tortalloc;
 my %oldenv;       # environment variables before test is started
 my $UNITDIR="./unit";
 my $CURLLOG="$LOGDIR/commands.log"; # all command lines run
-my $defserverlogslocktimeout = 5; # timeout to await server logs lock removal
+my $SERVERLOGS_LOCK="$LOGDIR/serverlogs.lock"; # server logs advisor read lock
+my $defserverlogslocktimeout = 2; # timeout to await server logs lock removal
 my $defpostcommanddelay = 0; # delay between command and postcheck sections
 my $multiprocess;   # nonzero with a separate test runner process
 
@@ -160,7 +159,7 @@ sub runner_init {
     $multiprocess = !!$jobs;
 
     # enable memory debugging if curl is compiled with it
-    $ENV{'CURL_MEMDEBUG'} = "$logdir/$MEMDUMP";
+    $ENV{'CURL_MEMDEBUG'} = "$LOGDIR/$MEMDUMP";
     $ENV{'CURL_ENTROPY'}="12345678";
     $ENV{'CURL_FORCETIME'}=1; # for debug NTLM magic
     $ENV{'CURL_GLOBAL_INIT'}=1; # debug curl_global_init/cleanup use
@@ -168,13 +167,6 @@ sub runner_init {
     $ENV{'CURL_HOME'}=$ENV{'HOME'};
     $ENV{'XDG_CONFIG_HOME'}=$ENV{'HOME'};
     $ENV{'COLUMNS'}=79; # screen width!
-
-    # Incorporate the $logdir into the random seed and re-seed the PRNG.
-    # This gives each runner a unique yet consistent seed which provides
-    # more unique port number selection in each runner, yet is deterministic
-    # across runs.
-    $randseed += unpack('%16C*', $logdir);
-    srand $randseed;
 
     # create pipes for communication with runner
     my ($thisrunnerr, $thiscontrollerw, $thiscontrollerr, $thisrunnerw);
@@ -186,13 +178,9 @@ sub runner_init {
         # Create a separate process in multiprocess mode
         my $child = fork();
         if(0 == $child) {
-            # TODO: set up better signal handlers
+            # TODO: set up a better signal handler
             $SIG{INT} = 'IGNORE';
             $SIG{TERM} = 'IGNORE';
-            eval {
-                # some msys2 perl versions don't define SIGUSR1
-                $SIG{USR1} = 'IGNORE';
-            };
 
             $thisrunnerid = $$;
             print "Runner $thisrunnerid starting\n" if($verbose);
@@ -206,21 +194,12 @@ sub runner_init {
             # Set this directory as ours
             $LOGDIR = $logdir;
             mkdir("$LOGDIR/$PIDDIR", 0777);
-            mkdir("$LOGDIR/$LOCKDIR", 0777);
-
-            # Initialize various server variables
-            initserverconfig();
 
             # handle IPC calls
             event_loop();
 
             # Can't rely on logmsg here in case it's buffered
             print "Runner $thisrunnerid exiting\n" if($verbose);
-
-            # To reach this point, either the controller has sent
-            # runnerac_stopservers() and runnerac_shutdown() or we have called
-            # runnerabort(). In both cases, there are no more of our servers
-            # running and we can safely exit.
             exit 0;
         }
 
@@ -300,14 +279,9 @@ sub prepro {
     my $show = 1;
     my @out;
     my $data_crlf;
-    my @pshow;
-    my @altshow;
-    my $plvl;
-    my $line;
     for my $s (@entiretest) {
         my $f = $s;
-        $line++;
-        if($s =~ /^ *%if ([A-Za-z0-9!_-]*)/) {
+        if($s =~ /^ *%if (.*)/) {
             my $cond = $1;
             my $rev = 0;
 
@@ -316,38 +290,15 @@ sub prepro {
                 $rev = 1;
             }
             $rev ^= $feature{$cond} ? 1 : 0;
-            push @pshow, $show; # push the previous state
-            $plvl++;
-            if($show) {
-                # only if this was showing before we can allow the alternative
-                # to go showing as well
-                push @altshow, $rev ^ 1; # push the reversed show state
-            }
-            else {
-                push @altshow, 0; # the alt should still hide
-            }
-            if($show) {
-                # we only allow show if already showing
-                $show = $rev;
-            }
+            $show = $rev;
             next;
         }
         elsif($s =~ /^ *%else/) {
-            if(!$plvl) {
-                print STDERR "error: test$testnum:$line: %else no %if\n";
-                last;
-            }
-            $show = pop @altshow;
-            push @altshow, $show; # put it back for consistency
+            $show ^= 1;
             next;
         }
         elsif($s =~ /^ *%endif/) {
-            if(!$plvl--) {
-                print STDERR "error: test$testnum:$line: %endif had no %if\n";
-                last;
-            }
-            $show = pop @pshow;
-            pop @altshow; # not used here but we must pop it
+            $show = 1;
             next;
         }
         if($show) {
@@ -386,20 +337,6 @@ sub readtestkeywords {
     }
 }
 
-
-#######################################################################
-# Return a list of log locks that still exist
-#
-sub logslocked {
-    opendir(my $lockdir, "$LOGDIR/$LOCKDIR");
-    my @locks;
-    foreach (readdir $lockdir) {
-        if(/^(.*)\.lock$/) {
-            push @locks, $1;
-        }
-    }
-    return @locks;
-}
 
 #######################################################################
 # Memory allocation test and failure torture testing.
@@ -547,7 +484,7 @@ sub torture {
             }
         }
         if($fail) {
-            logmsg " $testnum: torture FAILED: function number $limit in test.\n",
+            logmsg " Failed on function number $limit in test.\n",
             " invoke with \"-t$limit\" to repeat this single case.\n";
             stopservers($verbose);
             return 1;
@@ -584,7 +521,7 @@ sub singletest_startservers {
     my ($testnum, $testtimings) = @_;
 
     # remove old test server files before servers are started/verified
-    unlink("$LOGDIR/$SERVERCMD");
+    unlink("$LOGDIR/$FTPDCMD");
     unlink("$LOGDIR/$SERVERIN");
     unlink("$LOGDIR/$PROXYIN");
 
@@ -648,21 +585,21 @@ sub singletest_setenv {
     my @setenv = getpart("client", "setenv");
     foreach my $s (@setenv) {
         chomp $s;
-        if($s =~ /([^=]*)(.*)/) {
+        if($s =~ /([^=]*)=(.*)/) {
             my ($var, $content) = ($1, $2);
             # remember current setting, to restore it once test runs
             $oldenv{$var} = ($ENV{$var})?"$ENV{$var}":'notset';
-
-            if($content =~ /^=(.*)/) {
-                # assign it
-                $content = $1;
-
+            # set new value
+            if(!$content) {
+                delete $ENV{$var} if($ENV{$var});
+            }
+            else {
                 if($var =~ /^LD_PRELOAD/) {
                     if(exe_ext('TOOL') && (exe_ext('TOOL') eq '.exe')) {
                         logmsg "Skipping LD_PRELOAD due to lack of OS support\n" if($verbose);
                         next;
                     }
-                    if($feature{"Debug"} || !$has_shared) {
+                    if($feature{"debug"} || !$has_shared) {
                         logmsg "Skipping LD_PRELOAD due to no release shared build\n" if($verbose);
                         next;
                     }
@@ -670,11 +607,6 @@ sub singletest_setenv {
                 $ENV{$var} = "$content";
                 logmsg "setenv $var = $content\n" if($verbose);
             }
-            else {
-                # remove it
-                delete $ENV{$var} if($ENV{$var});
-            }
-
         }
     }
     if($proxy_address) {
@@ -740,7 +672,7 @@ sub singletest_prepare {
     my @ftpservercmd = getpart("reply", "servercmd");
     push @ftpservercmd, "Testnum $testnum\n";
     # write the instructions to file
-    writearray("$LOGDIR/$SERVERCMD", \@ftpservercmd);
+    writearray("$LOGDIR/$FTPDCMD", \@ftpservercmd);
 
     # create (possibly-empty) files before starting the test
     for my $partsuffix (('', '1', '2', '3', '4')) {
@@ -749,7 +681,7 @@ sub singletest_prepare {
         my $filename=$fileattr{'name'};
         if(@inputfile || $filename) {
             if(!$filename) {
-                logmsg " $testnum: IGNORED: section client=>file has no name attribute\n";
+                logmsg "ERROR: section client=>file has no name attribute\n";
                 return -1;
             }
             my $fileContent = join('', @inputfile);
@@ -758,10 +690,8 @@ sub singletest_prepare {
             my $path = $filename;
             # cut off the file name part
             $path =~ s/^(.*)\/[^\/]*/$1/;
-            my @ldparts = split(/\//, $LOGDIR);
-            my $nparts = @ldparts;
             my @parts = split(/\//, $path);
-            if(join("/", @parts[0..$nparts-1]) eq $LOGDIR) {
+            if($parts[0] eq $LOGDIR) {
                 # the file is in $LOGDIR/
                 my $d = shift @parts;
                 for(@parts) {
@@ -857,7 +787,6 @@ sub singletest_run {
         else {
             $cmdargs .= "--trace-ascii $LOGDIR/trace$testnum ";
         }
-        $cmdargs .= "--trace-config all ";
         $cmdargs .= "--trace-time ";
         if($run_event_based) {
             $cmdargs .= "--test-event ";
@@ -885,14 +814,14 @@ sub singletest_run {
         }
 
         if(! -f $CMDLINE) {
-            logmsg " $testnum: IGNORED: The tool set in the test case for this: '$tool' does not exist\n";
+            logmsg "The tool set in the test case for this: '$tool' does not exist\n";
             return (-1, 0, 0, "", "", 0);
         }
         $DBGCURL=$CMDLINE;
     }
 
     if($fail_due_event_based) {
-        logmsg " $testnum: IGNORED: This test cannot run event based\n";
+        logmsg "This test cannot run event based\n";
         return (-1, 0, 0, "", "", 0);
     }
 
@@ -921,9 +850,6 @@ sub singletest_run {
 
     if(!$tool) {
         $CMDLINE=shell_quote($CURL);
-        if((!$cmdhash{'option'}) || ($cmdhash{'option'} !~ /no-q/)) {
-            $CMDLINE .= " -q";
-        }
     }
 
     if(use_valgrind() && !$disablevalgrind) {
@@ -954,16 +880,9 @@ sub singletest_run {
     if($gdbthis) {
         my $gdbinit = "$TESTDIR/gdbinit$testnum";
         open(my $gdbcmd, ">", "$LOGDIR/gdbcmd") || die "Failure writing gdb file";
-        if($gdbthis == 1) {
-            # gdb mode
-            print $gdbcmd "set args $cmdargs\n";
-            print $gdbcmd "show args\n";
-            print $gdbcmd "source $gdbinit\n" if -e $gdbinit;
-        }
-        else {
-            # lldb mode
-            print $gdbcmd "set args $cmdargs\n";
-        }
+        print $gdbcmd "set args $cmdargs\n";
+        print $gdbcmd "show args\n";
+        print $gdbcmd "source $gdbinit\n" if -e $gdbinit;
         close($gdbcmd) || die "Failure writing gdb file";
     }
 
@@ -979,16 +898,9 @@ sub singletest_run {
                           $testnum,
                           "$gdb --directory $LIBDIR " . shell_quote($DBGCURL) . " -x $LOGDIR/gdbcmd");
     }
-    elsif($gdbthis == 1) {
-        # gdb
+    elsif($gdbthis) {
         my $GDBW = ($gdbxwin) ? "-w" : "";
         runclient("$gdb --directory $LIBDIR " . shell_quote($DBGCURL) . " $GDBW -x $LOGDIR/gdbcmd");
-        $cmdres=0; # makes it always continue after a debugged run
-    }
-    elsif($gdbthis == 2) {
-        # $gdb is "lldb"
-        print "runs lldb -- $CURL $cmdargs\n";
-        runclient("lldb -- $CURL $cmdargs");
         $cmdres=0; # makes it always continue after a debugged run
     }
     else {
@@ -1042,15 +954,13 @@ sub singletest_clean {
     }
     if($serverlogslocktimeout) {
         my $lockretry = $serverlogslocktimeout * 20;
-        my @locks;
-        while((@locks = logslocked()) && $lockretry--) {
+        while((-f $SERVERLOGS_LOCK) && $lockretry--) {
             portable_sleep(0.05);
         }
         if(($lockretry < 0) &&
            ($serverlogslocktimeout >= $defserverlogslocktimeout)) {
             logmsg "Warning: server logs lock timeout ",
-                   "($serverlogslocktimeout seconds) expired (locks: " .
-                   join(", ", @locks) . ")\n";
+                   "($serverlogslocktimeout seconds) expired\n";
         }
     }
 
@@ -1082,7 +992,7 @@ sub singletest_clean {
         foreach my $server (@killtestservers) {
             chomp $server;
             if(stopserver($server)) {
-                logmsg " $testnum: killserver FAILED\n";
+                logmsg " killserver FAILED\n";
                 return 1; # normal error if asked to fail on unexpected alive
             }
         }
@@ -1106,7 +1016,7 @@ sub singletest_postcheck {
             # Must run the postcheck command in torture mode in order
             # to clean up, but the result can't be relied upon.
             if($rc != 0 && !$torture) {
-                logmsg " $testnum: postcheck FAILED\n";
+                logmsg " postcheck FAILED\n";
                 return -1;
             }
         }
@@ -1227,7 +1137,7 @@ sub runner_test_run {
 # Async call runner_clearlocks
 # Called by controller
 sub runnerac_clearlocks {
-    return controlleripccall(\&runner_clearlocks, @_);
+    controlleripccall(\&runner_clearlocks, @_);
 }
 
 # Async call runner_shutdown
@@ -1236,38 +1146,36 @@ sub runnerac_clearlocks {
 # Called by controller
 sub runnerac_shutdown {
     my ($runnerid)=$_[0];
-    my $err = controlleripccall(\&runner_shutdown, @_);
+    controlleripccall(\&runner_shutdown, @_);
 
     # These have no more use
     close($controllerw{$runnerid});
     undef $controllerw{$runnerid};
     close($controllerr{$runnerid});
     undef $controllerr{$runnerid};
-    return $err;
 }
 
 # Async call of runner_stopservers
 # Called by controller
 sub runnerac_stopservers {
-    return controlleripccall(\&runner_stopservers, @_);
+    controlleripccall(\&runner_stopservers, @_);
 }
 
 # Async call of runner_test_preprocess
 # Called by controller
 sub runnerac_test_preprocess {
-    return controlleripccall(\&runner_test_preprocess, @_);
+    controlleripccall(\&runner_test_preprocess, @_);
 }
 
 # Async call of runner_test_run
 # Called by controller
 sub runnerac_test_run {
-    return controlleripccall(\&runner_test_run, @_);
+    controlleripccall(\&runner_test_run, @_);
 }
 
 ###################################################################
 # Call an arbitrary function via IPC
 # The first argument is the function reference, the second is the runner ID
-# Returns 0 on success, -1 on error writing to runner
 # Called by controller (indirectly, via a more specific function)
 sub controlleripccall {
     my $funcref = shift @_;
@@ -1281,44 +1189,30 @@ sub controlleripccall {
     my $margs = freeze \@_;
 
     # Send IPC call via pipe
-    my $err;
-    while(! defined ($err = syswrite($controllerw{$runnerid}, (pack "L", length($margs)) . $margs)) || $err <= 0) {
-        if((!defined $err && ! $!{EINTR}) || (defined $err && $err == 0)) {
-            # Runner has likely died
-            return -1;
-        }
-        # system call was interrupted, probably by ^C; restart it so we stay in sync
-    }
+    syswrite($controllerw{$runnerid}, (pack "L", length($margs)) . $margs);
 
     if(!$multiprocess) {
         # Call the remote function here in single process mode
         ipcrecv();
      }
-     return 0;
 }
 
 ###################################################################
 # Receive async response of a previous call via IPC
-# The first return value is the runner ID or undef on error
+# The first return value is the runner ID
 # Called by controller
 sub runnerar {
     my ($runnerid) = @_;
     my $err;
     my $datalen;
     while(! defined ($err = sysread($controllerr{$runnerid}, $datalen, 4)) || $err <= 0) {
-        if((!defined $err && ! $!{EINTR}) || (defined $err && $err == 0)) {
-            # Runner is likely dead and closed the pipe
-            return undef;
-        }
+        $!{EINTR} || die "error in runnerar: $!\n";
         # system call was interrupted, probably by ^C; restart it so we stay in sync
     }
     my $len=unpack("L", $datalen);
     my $buf;
     while(! defined ($err = sysread($controllerr{$runnerid}, $buf, $len)) || $err <= 0) {
-        if((!defined $err && ! $!{EINTR}) || (defined $err && $err == 0)) {
-            # Runner is likely dead and closed the pipe
-            return undef;
-        }
+        $!{EINTR} || die "error in runnerar: $!\n";
         # system call was interrupted, probably by ^C; restart it so we stay in sync
     }
 
@@ -1332,9 +1226,7 @@ sub runnerar {
 }
 
 ###################################################################
-# Returns runner ID if a response from an async call is ready or error
-# First value is ready, second is error, however an error case shows up
-# as ready in Linux, so you can't trust it.
+# Returns runner ID if a response from an async call is ready
 # argument is 0 for nonblocking, undef for blocking, anything else for timeout
 # Called by controller
 sub runnerar_ready {
@@ -1350,72 +1242,43 @@ sub runnerar_ready {
             $maxfileno = $fd;
         }
     }
-    $maxfileno || die "Internal error: no runners are available to wait on\n";
 
     # Wait for any pipe from any runner to be ready
-    # This may be interrupted and return EINTR, but this is ignored and the
-    # caller will need to later call this function again.
     # TODO: this is relatively slow with hundreds of fds
-    my $ein = $rin;
-    if(select(my $rout=$rin, undef, my $eout=$ein, $blocking) >= 1) {
+    # TODO: handle errors
+    if(select(my $rout=$rin, undef, undef, $blocking)) {
         for my $fd (0..$maxfileno) {
-            # Return an error condition first in case it's both
-            if(vec($eout, $fd, 1)) {
-                return (undef, $idbyfileno{$fd});
-            }
             if(vec($rout, $fd, 1)) {
-                return ($idbyfileno{$fd}, undef);
+                return $idbyfileno{$fd};
             }
         }
         die "Internal pipe readiness inconsistency\n";
     }
-    return (undef, undef);
-}
-
-
-###################################################################
-# Cleanly abort and exit the runner
-# This uses print since there is no longer any controller to write logs.
-sub runnerabort{
-    print "Controller is gone: runner $$ for $LOGDIR exiting\n";
-    my ($error, $logs) = runner_stopservers();
-    print $logs;
-    runner_shutdown();
+    return undef;
 }
 
 ###################################################################
 # Receive an IPC call in the runner and execute it
 # The IPC is read from the $runnerr pipe and the response is
 # written to the $runnerw pipe
-# Returns 0 if more IPC calls are expected or 1 if the runner should exit
 sub ipcrecv {
     my $err;
     my $datalen;
     while(! defined ($err = sysread($runnerr, $datalen, 4)) || $err <= 0) {
-        if((!defined $err && ! $!{EINTR}) || (defined $err && $err == 0)) {
-            # pipe has closed; controller is gone and we must exit
-            runnerabort();
-            # Special case: no response will be forthcoming
-            return 1;
-        }
+        $!{EINTR} || die "error in ipcrecv: $!\n";
         # system call was interrupted, probably by ^C; restart it so we stay in sync
     }
     my $len=unpack("L", $datalen);
     my $buf;
     while(! defined ($err = sysread($runnerr, $buf, $len)) || $err <= 0) {
-        if((!defined $err && ! $!{EINTR}) || (defined $err && $err == 0)) {
-            # pipe has closed; controller is gone and we must exit
-            runnerabort();
-            # Special case: no response will be forthcoming
-            return 1;
-        }
+        $!{EINTR} || die "error in ipcrecv: $!\n";
         # system call was interrupted, probably by ^C; restart it so we stay in sync
     }
 
     # Decode the function name and arguments
     my $argsarrayref = thaw $buf;
 
-    # The name of the function to call is the first argument
+    # The name of the function to call is the frist argument
     my $funcname = shift @$argsarrayref;
 
     # print "ipcrecv $funcname\n";
@@ -1426,7 +1289,7 @@ sub ipcrecv {
     }
     elsif($funcname eq "runner_shutdown") {
         runner_shutdown(@$argsarrayref);
-        # Special case: no response will be forthcoming
+        # Special case: no response
         return 1;
     }
     elsif($funcname eq "runner_stopservers") {
@@ -1445,15 +1308,7 @@ sub ipcrecv {
     # Marshall the results to return
     $buf = freeze \@res;
 
-    while(! defined ($err = syswrite($runnerw, (pack "L", length($buf)) . $buf)) || $err <= 0) {
-        if((!defined $err && ! $!{EINTR}) || (defined $err && $err == 0)) {
-            # pipe has closed; controller is gone and we must exit
-            runnerabort();
-            # Special case: no response will be forthcoming
-            return 1;
-        }
-        # system call was interrupted, probably by ^C; restart it so we stay in sync
-    }
+    syswrite($runnerw, (pack "L", length($buf)) . $buf);
 
     return 0;
 }

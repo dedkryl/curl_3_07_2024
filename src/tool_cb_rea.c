@@ -35,8 +35,6 @@
 #include "tool_cb_rea.h"
 #include "tool_operate.h"
 #include "tool_util.h"
-#include "tool_msgs.h"
-#include "tool_sleep.h"
 
 #include "memdebug.h" /* keep this as LAST include */
 
@@ -47,23 +45,17 @@
 size_t tool_read_cb(char *buffer, size_t sz, size_t nmemb, void *userdata)
 {
   ssize_t rc = 0;
-  struct per_transfer *per = userdata;
-  struct OperationConfig *config = per->config;
-
-  if((per->uploadfilesize != -1) &&
-     (per->uploadedsofar == per->uploadfilesize)) {
-    /* done */
-    return 0;
-  }
+  struct InStruct *in = userdata;
+  struct OperationConfig *config = in->config;
 
   if(config->timeout_ms) {
     struct timeval now = tvnow();
-    long msdelta = tvdiff(now, per->start);
+    long msdelta = tvdiff(now, in->per->start);
 
     if(msdelta > config->timeout_ms)
       /* timeout */
       return 0;
-#ifndef _WIN32
+#ifndef WIN32
     /* this logic waits on read activity on a file descriptor that is not a
        socket which makes it not work with select() on Windows */
     else {
@@ -76,35 +68,26 @@ size_t tool_read_cb(char *buffer, size_t sz, size_t nmemb, void *userdata)
       timeout.tv_usec = (int)((wait%1000)*1000);
 
       FD_ZERO(&bits);
-      FD_SET(per->infd, &bits);
-      if(!select(per->infd + 1, &bits, NULL, NULL, &timeout))
+      FD_SET(in->fd, &bits);
+      if(!select(in->fd + 1, &bits, NULL, NULL, &timeout))
         return 0; /* timeout */
     }
 #endif
   }
 
-  rc = read(per->infd, buffer, sz*nmemb);
+  rc = read(in->fd, buffer, sz*nmemb);
   if(rc < 0) {
     if(errno == EAGAIN) {
       errno = 0;
-      config->readbusy = TRUE;
+      in->config->readbusy = TRUE;
       return CURL_READFUNC_PAUSE;
     }
-    /* since size_t is unsigned we cannot return negative values fine */
+    /* since size_t is unsigned we can't return negative values fine */
     rc = 0;
   }
-  if((per->uploadfilesize != -1) &&
-     (per->uploadedsofar + rc > per->uploadfilesize)) {
-    /* do not allow uploading more than originally set out to do */
-    curl_off_t delta = per->uploadedsofar + rc - per->uploadfilesize;
-    warnf(per->config->global, "File size larger in the end than when "
-          "started. Dropping at least %" CURL_FORMAT_CURL_OFF_T " bytes",
-          delta);
-    rc = (ssize_t)(per->uploadfilesize - per->uploadedsofar);
-  }
-  config->readbusy = FALSE;
+  in->config->readbusy = FALSE;
 
-  /* when select() returned zero here, it timed out */
+  /* when select() rerturned zero here, it timed out */
   return (size_t)rc;
 }
 
@@ -125,33 +108,8 @@ int tool_readbusy_cb(void *clientp,
   (void)ulnow;  /* unused */
 
   if(config->readbusy) {
-    /* lame code to keep the rate down because the input might not deliver
-       anything, get paused again and come back here immediately */
-    static long rate = 500;
-    static struct timeval prev;
-    static curl_off_t ulprev;
-
-    if(ulprev == ulnow) {
-      /* it did not upload anything since last call */
-      struct timeval now = tvnow();
-      if(prev.tv_sec)
-        /* get a rolling average rate */
-        /* rate = rate - rate/4 + tvdiff(now, prev)/4; */
-        rate -= rate/4 - tvdiff(now, prev)/4;
-      prev = now;
-    }
-    else {
-      rate = 50;
-      ulprev = ulnow;
-    }
-    if(rate >= 50) {
-      /* keeps the looping down to 20 times per second in the crazy case */
-      config->readbusy = FALSE;
-      curl_easy_pause(per->curl, CURLPAUSE_CONT);
-    }
-    else
-      /* sleep half a period */
-      tool_go_sleep(25);
+    config->readbusy = FALSE;
+    curl_easy_pause(per->curl, CURLPAUSE_CONT);
   }
 
   return per->noprogress? 0 : CURL_PROGRESSFUNC_CONTINUE;

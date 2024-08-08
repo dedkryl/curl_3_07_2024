@@ -54,7 +54,7 @@ static size_t readcallback(char  *ptr,
   }
   (*counter)++; /* bump */
 
-  if(size * nmemb >= strlen(uploadthis)) {
+  if(size * nmemb > strlen(uploadthis)) {
     fprintf(stderr, "READ!\n");
     strcpy(ptr, uploadthis);
     return strlen(uploadthis);
@@ -76,9 +76,9 @@ static curlioerr ioctlcallback(CURL *handle,
 }
 
 
-CURLcode test(char *URL)
+int test(char *URL)
 {
-  CURLcode res = CURLE_OK;
+  int res = 0;
   CURL *curl = NULL;
   int counter = 0;
   CURLM *m = NULL;

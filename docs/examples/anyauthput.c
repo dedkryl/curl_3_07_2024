@@ -33,7 +33,7 @@
 
 #include <curl/curl.h>
 
-#ifdef _WIN32
+#ifdef WIN32
 #  define FILENO(fp) _fileno(fp)
 #else
 #  define FILENO(fp) fileno(fp)
@@ -60,7 +60,7 @@ static int my_seek(void *userp, curl_off_t offset, int origin)
   FILE *fp = (FILE *) userp;
 
   if(-1 == fseek(fp, (long) offset, origin))
-    /* could not seek */
+    /* couldn't seek */
     return CURL_SEEKFUNC_CANTSEEK;
 
   return CURL_SEEKFUNC_OK; /* success! */
@@ -69,15 +69,17 @@ static int my_seek(void *userp, curl_off_t offset, int origin)
 /* read callback function, fread() look alike */
 static size_t read_callback(char *ptr, size_t size, size_t nmemb, void *stream)
 {
-  size_t nread;
+  ssize_t retcode;
+  unsigned long nread;
 
-  nread = fread(ptr, size, nmemb, stream);
+  retcode = fread(ptr, size, nmemb, stream);
 
-  if(nread > 0) {
-    fprintf(stderr, "*** We read %lu bytes from file\n", (unsigned long)nread);
+  if(retcode > 0) {
+    nread = (unsigned long)retcode;
+    fprintf(stderr, "*** We read %lu bytes from file\n", nread);
   }
 
-  return nread;
+  return retcode;
 }
 
 int main(int argc, char **argv)
@@ -100,7 +102,7 @@ int main(int argc, char **argv)
   fp = fopen(file, "rb");
   fstat(FILENO(fp), &file_info);
 
-  /* In Windows, this inits the Winsock stuff */
+  /* In windows, this will init the winsock stuff */
   curl_global_init(CURL_GLOBAL_ALL);
 
   /* get a curl handle */

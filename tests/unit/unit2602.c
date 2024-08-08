@@ -26,7 +26,7 @@
 #include "urldata.h"
 #include "dynbuf.h"
 #include "dynhds.h"
-#include "curl_trc.h"
+#include "curl_log.h"
 
 static CURLcode unit_setup(void)
 {

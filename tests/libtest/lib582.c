@@ -83,10 +83,16 @@ static void addFd(struct Sockets *sockets, curl_socket_t fd, const char *what)
       return;
     sockets->max_count = 20;
   }
-  else if(sockets->count >= sockets->max_count) {
-    /* this can't happen in normal cases */
-    fprintf(stderr, "too many file handles error\n");
-    exit(2);
+  else if(sockets->count + 1 > sockets->max_count) {
+    curl_socket_t *oldptr = sockets->sockets;
+    sockets->sockets = realloc(oldptr, sizeof(curl_socket_t) *
+                               (sockets->max_count + 20));
+    if(!sockets->sockets) {
+      /* cleanup in test_cleanup */
+      sockets->sockets = oldptr;
+      return;
+    }
+    sockets->max_count += 20;
   }
   /*
    * Add file descriptor to array.
@@ -220,9 +226,9 @@ static void checkFdSet(CURLM *curl, struct Sockets *sockets, fd_set *fdset,
   }
 }
 
-CURLcode test(char *URL)
+int test(char *URL)
 {
-  CURLcode res = CURLE_OK;
+  int res = 0;
   CURL *curl = NULL;
   FILE *hd_src = NULL;
   int hd;

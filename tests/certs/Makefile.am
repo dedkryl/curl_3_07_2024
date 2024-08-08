@@ -50,7 +50,6 @@ GENERATEDCERTS = \
   Server-localhost-sv.pem \
   Server-localhost-sv.pub.der \
   Server-localhost-sv.pub.pem \
-  Server-localhost-sv.pubkey-pinned \
   Server-localhost.nn-sv.crl \
   Server-localhost.nn-sv.crt \
   Server-localhost.nn-sv.csr \
@@ -60,7 +59,6 @@ GENERATEDCERTS = \
   Server-localhost.nn-sv.pem \
   Server-localhost.nn-sv.pub.der \
   Server-localhost.nn-sv.pub.pem \
-  Server-localhost.nn-sv.pubkey-pinned \
   Server-localhost0h-sv.crl \
   Server-localhost0h-sv.crt \
   Server-localhost0h-sv.csr \
@@ -70,7 +68,6 @@ GENERATEDCERTS = \
   Server-localhost0h-sv.pem \
   Server-localhost0h-sv.pub.der \
   Server-localhost0h-sv.pub.pem \
-  Server-localhost0h-sv.pubkey-pinned \
   Server-localhost-firstSAN-sv.crl \
   Server-localhost-firstSAN-sv.crt \
   Server-localhost-firstSAN-sv.csr \
@@ -80,7 +77,6 @@ GENERATEDCERTS = \
   Server-localhost-firstSAN-sv.pem \
   Server-localhost-firstSAN-sv.pub.der \
   Server-localhost-firstSAN-sv.pub.pem \
-  Server-localhost-firstSAN-sv.pubkey-pinned \
   Server-localhost-lastSAN-sv.crl \
   Server-localhost-lastSAN-sv.crt \
   Server-localhost-lastSAN-sv.csr \
@@ -90,7 +86,6 @@ GENERATEDCERTS = \
   Server-localhost-lastSAN-sv.pem \
   Server-localhost-lastSAN-sv.pub.der \
   Server-localhost-lastSAN-sv.pub.pem \
-  Server-localhost-lastSAN-sv.pubkey-pinned \
   stunnel-sv.crl \
   stunnel-sv.crt \
   stunnel-sv.csr \
@@ -99,9 +94,7 @@ GENERATEDCERTS = \
   stunnel-sv.key \
   stunnel-sv.pem \
   stunnel-sv.der \
-  stunnel-sv.pub.der \
-  stunnel-sv.pub.pem \
-  stunnel-sv.pubkey-pinned
+  stunnel-sv.pub.pem
 
 SRPFILES = \
   srp-verifier-conf \

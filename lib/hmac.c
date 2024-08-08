@@ -26,8 +26,7 @@
 
 #include "curl_setup.h"
 
-#if (defined(USE_CURL_NTLM_CORE) && !defined(USE_WINDOWS_SSPI))         \
-  || !defined(CURL_DISABLE_AWS) || !defined(CURL_DISABLE_DIGEST_AUTH)
+#ifndef CURL_DISABLE_CRYPTO_AUTH
 
 #include <curl/curl.h>
 
@@ -42,7 +41,7 @@
  * Generic HMAC algorithm.
  *
  *   This module computes HMAC digests based on any hash function. Parameters
- * and computing procedures are setup dynamically at HMAC computation context
+ * and computing procedures are set-up dynamically at HMAC computation context
  * initialization.
  */
 
@@ -170,4 +169,4 @@ CURLcode Curl_hmacit(const struct HMAC_params *hashparams,
   return CURLE_OK;
 }
 
-#endif /* Using NTLM (without SSPI) or AWS */
+#endif /* CURL_DISABLE_CRYPTO_AUTH */

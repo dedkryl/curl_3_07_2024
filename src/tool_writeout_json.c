@@ -31,84 +31,60 @@
 #include "tool_writeout_json.h"
 #include "tool_writeout.h"
 
-#define MAX_JSON_STRING 100000
-
-/* provide the given string in dynbuf as a quoted json string, but without the
-   outer quotes. The buffer is not inited by this function.
-
-   Return 0 on success, non-zero on error.
-*/
-int jsonquoted(const char *in, size_t len,
-               struct curlx_dynbuf *out, bool lowercase)
+void jsonWriteString(FILE *stream, const char *in, bool lowercase)
 {
-  const unsigned char *i = (unsigned char *)in;
-  const unsigned char *in_end = &i[len];
-  CURLcode result = CURLE_OK;
+  const char *i = in;
+  const char *in_end = in + strlen(in);
 
-  for(; (i < in_end) && !result; i++) {
+  fputc('\"', stream);
+  for(; i < in_end; i++) {
     switch(*i) {
     case '\\':
-      result = curlx_dyn_addn(out, "\\\\", 2);
+      fputs("\\\\", stream);
       break;
     case '\"':
-      result = curlx_dyn_addn(out, "\\\"", 2);
+      fputs("\\\"", stream);
       break;
     case '\b':
-      result = curlx_dyn_addn(out, "\\b", 2);
+      fputs("\\b", stream);
       break;
     case '\f':
-      result = curlx_dyn_addn(out, "\\f", 2);
+      fputs("\\f", stream);
       break;
     case '\n':
-      result = curlx_dyn_addn(out, "\\n", 2);
+      fputs("\\n", stream);
       break;
     case '\r':
-      result = curlx_dyn_addn(out, "\\r", 2);
+      fputs("\\r", stream);
       break;
     case '\t':
-      result = curlx_dyn_addn(out, "\\t", 2);
+      fputs("\\t", stream);
       break;
     default:
-      if(*i < 32)
-        result = curlx_dyn_addf(out, "\\u%04x", *i);
+      if(*i < 32) {
+        fprintf(stream, "u%04x", *i);
+      }
       else {
-        char o = (char)*i;
-        if(lowercase && (o >= 'A' && o <= 'Z'))
-          /* do not use tolower() since that is locale specific */
-          o |= ('a' - 'A');
-        result = curlx_dyn_addn(out, &o, 1);
+        char out = *i;
+        if(lowercase && (out >= 'A' && out <= 'Z'))
+          /* do not use tolower() since that's locale specific */
+          out |= ('a' - 'A');
+        fputc(out, stream);
       }
       break;
     }
   }
-  if(result)
-    return (int)result;
-  return 0;
-}
-
-void jsonWriteString(FILE *stream, const char *in, bool lowercase)
-{
-  struct curlx_dynbuf out;
-  curlx_dyn_init(&out, MAX_JSON_STRING);
-
-  if(!jsonquoted(in, strlen(in), &out, lowercase)) {
-    fputc('\"', stream);
-    if(curlx_dyn_len(&out))
-      fputs(curlx_dyn_ptr(&out), stream);
-    fputc('\"', stream);
-  }
-  curlx_dyn_free(&out);
+  fputc('\"', stream);
 }
 
 void ourWriteOutJSON(FILE *stream, const struct writeoutvar mappings[],
-                     size_t nentries,
                      struct per_transfer *per, CURLcode per_result)
 {
-  size_t i;
+  int i;
 
   fputs("{", stream);
 
-  for(i = 0; i < nentries; i++) {
+  for(i = 0; mappings[i].name != NULL; i++) {
     if(mappings[i].writefunc &&
        mappings[i].writefunc(stream, &mappings[i], per, per_result, true))
       fputs(",", stream);

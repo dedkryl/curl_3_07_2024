@@ -24,7 +24,6 @@
 
 AUTOMAKE_OPTIONS = foreign nostdinc
 
-EXTRA_DIST = CMakeLists.txt
 
 # Specify our include paths here, and do it relative to $(top_srcdir) and
 # $(top_builddir), to ensure that these paths which belong to the library
@@ -60,7 +59,7 @@ endif
 # This might hold -Werror
 CFLAGS += @CURL_CFLAG_EXTRAS@
 
-# Makefile.inc provides the check_PROGRAMS define
+# Makefile.inc provides the check_PROGRAMS and COMPLICATED_EXAMPLES defines
 include Makefile.inc
 
 all: $(check_PROGRAMS)

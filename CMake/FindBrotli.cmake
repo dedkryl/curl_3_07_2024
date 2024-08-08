@@ -21,31 +21,23 @@
 # SPDX-License-Identifier: curl
 #
 ###########################################################################
-# Find the brotli library
-#
-# Result Variables:
-#
-# BROTLI_FOUND         System has brotli
-# BROTLI_INCLUDE_DIRS  The brotli include directories
-# BROTLI_LIBRARIES     The brotli library names
-
 include(FindPackageHandleStandardArgs)
 
 find_path(BROTLI_INCLUDE_DIR "brotli/decode.h")
 
-find_library(BROTLICOMMON_LIBRARY NAMES "brotlicommon")
-find_library(BROTLIDEC_LIBRARY NAMES "brotlidec")
+find_library(BROTLICOMMON_LIBRARY NAMES brotlicommon)
+find_library(BROTLIDEC_LIBRARY NAMES brotlidec)
 
 find_package_handle_standard_args(Brotli
-  FOUND_VAR
-    BROTLI_FOUND
-  REQUIRED_VARS
-    BROTLI_INCLUDE_DIR
-    BROTLIDEC_LIBRARY
-    BROTLICOMMON_LIBRARY
-  FAIL_MESSAGE
-    "Could NOT find Brotli"
+    FOUND_VAR
+      BROTLI_FOUND
+    REQUIRED_VARS
+      BROTLIDEC_LIBRARY
+      BROTLICOMMON_LIBRARY
+      BROTLI_INCLUDE_DIR
+    FAIL_MESSAGE
+      "Could NOT find Brotli"
 )
 
 set(BROTLI_INCLUDE_DIRS ${BROTLI_INCLUDE_DIR})
-set(BROTLI_LIBRARIES ${BROTLIDEC_LIBRARY} ${BROTLICOMMON_LIBRARY})
+set(BROTLI_LIBRARIES ${BROTLICOMMON_LIBRARY} ${BROTLIDEC_LIBRARY})

@@ -1,9 +1,3 @@
-<!--
-Copyright (C) Daniel Stenberg, <daniel@haxx.se>, et al.
-
-SPDX-License-Identifier: curl
--->
-
 Version Numbers and Releases
 ============================
 
@@ -20,11 +14,11 @@ Version Numbers and Releases
 
 ## Bumping numbers
 
- One of these numbers get bumped in each new release. The numbers to the right
- of a bumped number are reset to zero.
+ One of these numbers will get bumped in each new release. The numbers to the
+ right of a bumped number will be reset to zero.
 
- The main version number is bumped when *really* big, world colliding changes
- are made. The release number is bumped when changes are performed or
+ The main version number will get bumped when *really* big, world colliding
+ changes are made. The release number is bumped when changes are performed or
  things/features are added. The patch number is bumped when the changes are
  mere bugfixes.
 

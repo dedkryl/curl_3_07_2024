@@ -50,7 +50,6 @@ my @ignore_line;
 my %warnings_extended = (
     'COPYRIGHTYEAR'    => 'copyright year incorrect',
     'STRERROR',        => 'strerror() detected',
-    'STDERR',          => 'stderr detected',
     );
 
 my %warnings = (
@@ -59,7 +58,6 @@ my %warnings = (
     'ASTERISKSPACE'    => 'pointer declared with space after asterisk',
     'BADCOMMAND'       => 'bad !checksrc! instruction',
     'BANNEDFUNC'       => 'a banned function was used',
-    'BANNEDPREPROC'    => 'a banned symbol was used on a preprocessor line',
     'BRACEELSE'        => '} else on the same line',
     'BRACEPOS'         => 'wrong position for an open brace',
     'BRACEWHILE'       => 'A single space between open brace and while',
@@ -101,13 +99,13 @@ my %warnings = (
     );
 
 sub readskiplist {
-    open(my $W, '<', "$dir/checksrc.skip") or return;
-    my @all=<$W>;
+    open(W, "<$dir/checksrc.skip") or return;
+    my @all=<W>;
     for(@all) {
         $windows_os ? $_ =~ s/\r?\n$// : chomp;
         $skiplist{$_}=1;
     }
-    close($W);
+    close(W);
 }
 
 # Reads the .checksrc in $dir for any extended warnings to enable locally.
@@ -120,7 +118,6 @@ sub readlocalfile {
     open(my $rcfile, "<", "$dir/.checksrc") or return;
 
     while(<$rcfile>) {
-        $windows_os ? $_ =~ s/\r?\n$// : chomp;
         $i++;
 
         # Lines starting with '#' are considered comments
@@ -384,7 +381,7 @@ sub scanfile {
     my $l = "";
     my $prep = 0;
     my $prevp = 0;
-    open(my $R, '<', $file) || die "failed to open $file";
+    open(R, "<$file") || die "failed to open $file";
 
     my $incomment=0;
     my @copyright=();
@@ -392,7 +389,7 @@ sub scanfile {
     checksrc_clear(); # for file based ignores
     accept_violations();
 
-    while(<$R>) {
+    while(<R>) {
         $windows_os ? $_ =~ s/\r?\n$// : chomp;
         my $l = $_;
         my $ol = $l; # keep the unmodified line for error reporting
@@ -402,13 +399,6 @@ sub scanfile {
         if($l =~ /\!checksrc\! (.*)/) {
             my $cmd = $1;
             checksrc($cmd, $line, $file, $l)
-        }
-
-        if($l =~ /^#line (\d+) \"([^\"]*)\"/) {
-            # a #line instruction
-            $file = $2;
-            $line = $1;
-            next;
         }
 
         # check for a copyright statement and save the years
@@ -542,7 +532,7 @@ sub scanfile {
             }
             elsif(($first eq "*") && ($word !~ /(for|if|while|switch)/)) {
                 # A "(*" beginning makes the space OK because it wants to
-                # allow function pointer declared
+                # allow funcion pointer declared
             }
             elsif($1 =~ / *typedef/) {
                 # typedefs can use space-paren
@@ -720,8 +710,7 @@ sub scanfile {
                     strtok|
                     v?sprintf|
                     (str|_mbs|_tcs|_wcs)n?cat|
-                    LoadLibrary(Ex)?(A|W)?|
-                    _?w?access)
+                    LoadLibrary(Ex)?(A|W)?)
                    \s*\(
                  /x) {
             checkwarn("BANNEDFUNC",
@@ -737,18 +726,6 @@ sub scanfile {
                     checkwarn("STRERROR",
                               $line, length($1), $file, $ol,
                               "use of $2 is banned");
-                }
-            }
-        }
-        if($warnings{"STDERR"}) {
-            # scan for use of banned stderr. This is not a BANNEDFUNC to
-            # allow for individual enable/disable of this warning.
-            if($l =~ /^([^\"-]*\W)(stderr)[^\"_]/x) {
-                if($1 !~ /^ *\#/) {
-                    # skip preprocessor lines
-                    checkwarn("STDERR",
-                              $line, length($1), $file, $ol,
-                              "use of $2 is banned (use tool_stderr instead)");
                 }
             }
         }
@@ -902,18 +879,6 @@ sub scanfile {
                       "multiple spaces");
         }
       preproc:
-        if($prep) {
-          # scan for use of banned symbols on a preprocessor line
-          if($l =~ /^(^|.*\W)
-                     (WIN32)
-                     (\W|$)
-                   /x) {
-              checkwarn("BANNEDPREPROC",
-                        $line, length($1), $file, $ol,
-                        "use of $2 is banned from preprocessor lines" .
-                        (($2 eq "WIN32") ? ", use _WIN32 instead" : ""));
-          }
-        }
         $line++;
         $prevp = $prep;
         $prevl = $ol if(!$prep);
@@ -924,7 +889,7 @@ sub scanfile {
         checkwarn("COPYRIGHT", 1, 0, $file, "", "Missing copyright statement", 1);
     }
 
-    # COPYRIGHTYEAR is an extended warning so we must first see if it has been
+    # COPYRIGHTYEAR is a extended warning so we must first see if it has been
     # enabled in .checksrc
     if(defined($warnings{"COPYRIGHTYEAR"})) {
         # The check for updated copyrightyear is overly complicated in order to
@@ -947,12 +912,12 @@ sub scanfile {
         @copyright = sort {$$b{year} cmp $$a{year}} @copyright;
 
         # if the file is modified, assume commit year this year
-        if(`git status -s -- "$file"` =~ /^ [MARCU]/) {
+        if(`git status -s -- $file` =~ /^ [MARCU]/) {
             $commityear = (localtime(time))[5] + 1900;
         }
         else {
             # min-parents=1 to ignore wrong initial commit in truncated repos
-            my $grl = `git rev-list --max-count=1 --min-parents=1 --timestamp HEAD -- "$file"`;
+            my $grl = `git rev-list --max-count=1 --min-parents=1 --timestamp HEAD -- $file`;
             if($grl) {
                 chomp $grl;
                 $commityear = (localtime((split(/ /, $grl))[0]))[5] + 1900;
@@ -974,7 +939,7 @@ sub scanfile {
 
     checksrc_endoffile($file);
 
-    close($R);
+    close(R);
 
 }
 

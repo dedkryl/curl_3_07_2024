@@ -12,12 +12,12 @@ source analysis
 none
 </server>
 
-<name>
+ <name>
 Verify deprecation statuses and versions
-</name>
+ </name>
 
 <command type="perl">
-%SRCDIR/test1222.pl %SRCDIR/..
+%SRCDIR/check-deprecated.pl %SRCDIR/..
 </command>
 </client>
 

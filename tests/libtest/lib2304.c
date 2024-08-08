@@ -26,30 +26,30 @@
 
 #ifdef USE_WEBSOCKETS
 
-static CURLcode ping(CURL *curl, const char *send_payload)
+static int ping(CURL *curl, const char *send_payload)
 {
   size_t sent;
   CURLcode result =
     curl_ws_send(curl, send_payload, strlen(send_payload), &sent, 0,
                  CURLWS_PING);
   fprintf(stderr,
-          "ws: curl_ws_send returned %d, sent %d\n", result, (int)sent);
+          "ws: curl_ws_send returned %u, sent %u\n", (int)result, (int)sent);
 
-  return result;
+  return (int)result;
 }
 
-static CURLcode recv_pong(CURL *curl, const char *expected_payload)
+static int recv_pong(CURL *curl, const char *exected_payload)
 {
   size_t rlen;
-  const struct curl_ws_frame *meta;
+  struct curl_ws_frame *meta;
   char buffer[256];
   CURLcode result = curl_ws_recv(curl, buffer, sizeof(buffer), &rlen, &meta);
   if(!result) {
     if(meta->flags & CURLWS_PONG) {
       int same = 0;
       fprintf(stderr, "ws: got PONG back\n");
-      if(rlen == strlen(expected_payload)) {
-        if(!memcmp(expected_payload, buffer, rlen)) {
+      if(rlen == strlen(exected_payload)) {
+        if(!memcmp(exected_payload, buffer, rlen)) {
           fprintf(stderr, "ws: got the same payload back\n");
           same = 1;
         }
@@ -58,19 +58,19 @@ static CURLcode recv_pong(CURL *curl, const char *expected_payload)
         fprintf(stderr, "ws: did NOT get the same payload back\n");
     }
     else {
-      fprintf(stderr, "recv_pong: got %d bytes rflags %x\n", (int)rlen,
+      fprintf(stderr, "recv_pong: got %u bytes rflags %x\n", (int)rlen,
               meta->flags);
     }
   }
-  fprintf(stderr, "ws: curl_ws_recv returned %d, received %d\n", result,
-          (int)rlen);
-  return result;
+  fprintf(stderr, "ws: curl_ws_recv returned %u, received %u\n", (int)result,
+         rlen);
+  return (int)result;
 }
 
-static CURLcode recv_any(CURL *curl)
+static int recv_any(CURL *curl)
 {
   size_t rlen;
-  const struct curl_ws_frame *meta;
+  struct curl_ws_frame *meta;
   char buffer[256];
   CURLcode result = curl_ws_recv(curl, buffer, sizeof(buffer), &rlen, &meta);
   if(result)
@@ -78,7 +78,7 @@ static CURLcode recv_any(CURL *curl)
 
   fprintf(stderr, "recv_any: got %u bytes rflags %x\n", (int)rlen,
           meta->flags);
-  return CURLE_OK;
+  return 0;
 }
 
 /* just close the connection */
@@ -88,7 +88,7 @@ static void websocket_close(CURL *curl)
   CURLcode result =
     curl_ws_send(curl, "", 0, &sent, 0, CURLWS_CLOSE);
   fprintf(stderr,
-          "ws: curl_ws_send returned %d, sent %u\n", result, (int)sent);
+          "ws: curl_ws_send returned %u, sent %u\n", (int)result, (int)sent);
 }
 
 static void websocket(CURL *curl)
@@ -110,7 +110,7 @@ static void websocket(CURL *curl)
   websocket_close(curl);
 }
 
-CURLcode test(char *URL)
+int test(char *URL)
 {
   CURL *curl;
   CURLcode res = CURLE_OK;
@@ -126,7 +126,7 @@ CURLcode test(char *URL)
     curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
     curl_easy_setopt(curl, CURLOPT_CONNECT_ONLY, 2L); /* websocket style */
     res = curl_easy_perform(curl);
-    fprintf(stderr, "curl_easy_perform() returned %d\n", res);
+    fprintf(stderr, "curl_easy_perform() returned %u\n", (int)res);
     if(res == CURLE_OK)
       websocket(curl);
 
@@ -134,7 +134,7 @@ CURLcode test(char *URL)
     curl_easy_cleanup(curl);
   }
   curl_global_cleanup();
-  return res;
+  return (int)res;
 }
 
 #else

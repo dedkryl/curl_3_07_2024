@@ -30,11 +30,9 @@
 #include <stdio.h>
 #include <string.h>
 
-/* somewhat Unix-specific */
-#ifndef _WIN32
+/* somewhat unix-specific */
 #include <sys/time.h>
 #include <unistd.h>
-#endif
 
 /* curl stuff */
 #include <curl/curl.h>
@@ -62,7 +60,7 @@ int main(void)
   for(i = 0; i<HANDLECOUNT; i++)
     handles[i] = curl_easy_init();
 
-  /* set the options (I left out a few, you get the point anyway) */
+  /* set the options (I left out a few, you will get the point anyway) */
   curl_easy_setopt(handles[HTTP_HANDLE], CURLOPT_URL, "https://example.com");
 
   curl_easy_setopt(handles[FTP_HANDLE], CURLOPT_URL, "ftp://example.com");
@@ -149,8 +147,7 @@ int main(void)
   }
 
   /* See how the transfers went */
-  /* !checksrc! disable EQUALSNULL 1 */
-  while((msg = curl_multi_info_read(multi_handle, &msgs_left)) != NULL) {
+  while((msg = curl_multi_info_read(multi_handle, &msgs_left))) {
     if(msg->msg == CURLMSG_DONE) {
       int idx;
 

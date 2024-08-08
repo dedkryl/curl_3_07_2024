@@ -31,7 +31,8 @@
 
 /* value for MAX_CONCURRENT_STREAMS we use until we get an updated setting
    from the peer */
-#define DEFAULT_MAX_CONCURRENT_STREAMS 100
+/* curl-impersonate: Use 1000 concurrent streams like Chrome. */
+#define DEFAULT_MAX_CONCURRENT_STREAMS 1000
 
 /*
  * Store nghttp2 version info in this buffer.
@@ -47,6 +48,8 @@ bool Curl_h2_http_1_1_error(struct Curl_easy *data);
 bool Curl_conn_is_http2(const struct Curl_easy *data,
                         const struct connectdata *conn,
                         int sockindex);
+bool Curl_cf_is_http2(struct Curl_cfilter *cf, const struct Curl_easy *data);
+
 bool Curl_http2_may_switch(struct Curl_easy *data,
                            struct connectdata *conn,
                            int sockindex);

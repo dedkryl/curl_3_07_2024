@@ -45,6 +45,9 @@
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif
+#ifdef HAVE_UTSNAME_H
+#include <sys/utsname.h>
+#endif
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
 #endif
@@ -97,8 +100,7 @@ static CURLcode imap_doing(struct Curl_easy *data, bool *dophase_done);
 static CURLcode imap_setup_connection(struct Curl_easy *data,
                                       struct connectdata *conn);
 static char *imap_atom(const char *str, bool escape_only);
-static CURLcode imap_sendf(struct Curl_easy *data, const char *fmt, ...)
-  CURL_PRINTF(2, 3);
+static CURLcode imap_sendf(struct Curl_easy *data, const char *fmt, ...);
 static CURLcode imap_parse_url_options(struct connectdata *conn);
 static CURLcode imap_parse_url_path(struct Curl_easy *data);
 static CURLcode imap_parse_custom_request(struct Curl_easy *data);
@@ -117,7 +119,7 @@ static CURLcode imap_get_message(struct Curl_easy *data, struct bufref *out);
  */
 
 const struct Curl_handler Curl_handler_imap = {
-  "imap",                           /* scheme */
+  "IMAP",                           /* scheme */
   imap_setup_connection,            /* setup_connection */
   imap_do,                          /* do_it */
   imap_done,                        /* done */
@@ -130,8 +132,7 @@ const struct Curl_handler Curl_handler_imap = {
   ZERO_NULL,                        /* domore_getsock */
   ZERO_NULL,                        /* perform_getsock */
   imap_disconnect,                  /* disconnect */
-  ZERO_NULL,                        /* write_resp */
-  ZERO_NULL,                        /* write_resp_hd */
+  ZERO_NULL,                        /* readwrite */
   ZERO_NULL,                        /* connection_check */
   ZERO_NULL,                        /* attach connection */
   PORT_IMAP,                        /* defport */
@@ -147,7 +148,7 @@ const struct Curl_handler Curl_handler_imap = {
  */
 
 const struct Curl_handler Curl_handler_imaps = {
-  "imaps",                          /* scheme */
+  "IMAPS",                          /* scheme */
   imap_setup_connection,            /* setup_connection */
   imap_do,                          /* do_it */
   imap_done,                        /* done */
@@ -160,8 +161,7 @@ const struct Curl_handler Curl_handler_imaps = {
   ZERO_NULL,                        /* domore_getsock */
   ZERO_NULL,                        /* perform_getsock */
   imap_disconnect,                  /* disconnect */
-  ZERO_NULL,                        /* write_resp */
-  ZERO_NULL,                        /* write_resp_hd */
+  ZERO_NULL,                        /* readwrite */
   ZERO_NULL,                        /* connection_check */
   ZERO_NULL,                        /* attach connection */
   PORT_IMAPS,                       /* defport */
@@ -357,8 +357,8 @@ static bool imap_endofresp(struct Curl_easy *data, struct connectdata *conn,
  */
 static CURLcode imap_get_message(struct Curl_easy *data, struct bufref *out)
 {
-  char *message = Curl_dyn_ptr(&data->conn->proto.imapc.pp.recvbuf);
-  size_t len = data->conn->proto.imapc.pp.nfinal;
+  char *message = data->state.buffer;
+  size_t len = strlen(message);
 
   if(len > 2) {
     /* Find the start of the message */
@@ -385,11 +385,11 @@ static CURLcode imap_get_message(struct Curl_easy *data, struct bufref *out)
 
 /***********************************************************************
  *
- * imap_state()
+ * state()
  *
  * This is the ONLY way to change IMAP state!
  */
-static void imap_state(struct Curl_easy *data, imapstate newstate)
+static void state(struct Curl_easy *data, imapstate newstate)
 {
   struct imap_conn *imapc = &data->conn->proto.imapc;
 #if defined(DEBUGBUILD) && !defined(CURL_DISABLE_VERBOSE_STRINGS)
@@ -441,7 +441,7 @@ static CURLcode imap_perform_capability(struct Curl_easy *data,
   result = imap_sendf(data, "CAPABILITY");
 
   if(!result)
-    imap_state(data, IMAP_CAPABILITY);
+    state(data, IMAP_CAPABILITY);
 
   return result;
 }
@@ -458,7 +458,7 @@ static CURLcode imap_perform_starttls(struct Curl_easy *data)
   CURLcode result = imap_sendf(data, "STARTTLS");
 
   if(!result)
-    imap_state(data, IMAP_STARTTLS);
+    state(data, IMAP_STARTTLS);
 
   return result;
 }
@@ -487,7 +487,7 @@ static CURLcode imap_perform_upgrade_tls(struct Curl_easy *data,
   if(!result) {
     imapc->ssldone = ssldone;
     if(imapc->state != IMAP_UPGRADETLS)
-      imap_state(data, IMAP_UPGRADETLS);
+      state(data, IMAP_UPGRADETLS);
 
     if(imapc->ssldone) {
       imap_to_imaps(conn);
@@ -512,9 +512,9 @@ static CURLcode imap_perform_login(struct Curl_easy *data,
   char *passwd;
 
   /* Check we have a username and password to authenticate with and end the
-     connect phase if we do not */
+     connect phase if we don't */
   if(!data->state.aptr.user) {
-    imap_state(data, IMAP_STOP);
+    state(data, IMAP_STOP);
 
     return result;
   }
@@ -531,7 +531,7 @@ static CURLcode imap_perform_login(struct Curl_easy *data,
   free(passwd);
 
   if(!result)
-    imap_state(data, IMAP_LOGIN);
+    state(data, IMAP_LOGIN);
 
   return result;
 }
@@ -612,10 +612,10 @@ static CURLcode imap_perform_authentication(struct Curl_easy *data,
   saslprogress progress;
 
   /* Check if already authenticated OR if there is enough data to authenticate
-     with and end the connect phase if we do not */
+     with and end the connect phase if we don't */
   if(imapc->preauth ||
      !Curl_sasl_can_authenticate(&imapc->sasl, data)) {
-    imap_state(data, IMAP_STOP);
+    state(data, IMAP_STOP);
     return result;
   }
 
@@ -624,7 +624,7 @@ static CURLcode imap_perform_authentication(struct Curl_easy *data,
 
   if(!result) {
     if(progress == SASL_INPROGRESS)
-      imap_state(data, IMAP_AUTHENTICATE);
+      state(data, IMAP_AUTHENTICATE);
     else if(!imapc->login_disabled && (imapc->preftype & IMAP_TYPE_CLEARTEXT))
       /* Perform clear text authentication */
       result = imap_perform_login(data, conn);
@@ -667,7 +667,7 @@ static CURLcode imap_perform_list(struct Curl_easy *data)
   }
 
   if(!result)
-    imap_state(data, IMAP_LIST);
+    state(data, IMAP_LIST);
 
   return result;
 }
@@ -707,7 +707,7 @@ static CURLcode imap_perform_select(struct Curl_easy *data)
   free(mailbox);
 
   if(!result)
-    imap_state(data, IMAP_SELECT);
+    state(data, IMAP_SELECT);
 
   return result;
 }
@@ -749,7 +749,7 @@ static CURLcode imap_perform_fetch(struct Curl_easy *data)
     return CURLE_URL_MALFORMAT;
   }
   if(!result)
-    imap_state(data, IMAP_FETCH);
+    state(data, IMAP_FETCH);
 
   return result;
 }
@@ -772,11 +772,10 @@ static CURLcode imap_perform_append(struct Curl_easy *data)
     return CURLE_URL_MALFORMAT;
   }
 
-#ifndef CURL_DISABLE_MIME
   /* Prepare the mime data if some. */
   if(data->set.mimepost.kind != MIMEKIND_NONE) {
     /* Use the whole structure as data. */
-    data->set.mimepost.flags &= ~(unsigned int)MIME_BODY_ONLY;
+    data->set.mimepost.flags &= ~MIME_BODY_ONLY;
 
     /* Add external headers and mime version. */
     curl_mime_headers(&data->set.mimepost, data->set.headers, 0);
@@ -788,18 +787,18 @@ static CURLcode imap_perform_append(struct Curl_easy *data)
         result = Curl_mime_add_header(&data->set.mimepost.curlheaders,
                                       "Mime-Version: 1.0");
 
+    /* Make sure we will read the entire mime structure. */
     if(!result)
-      result = Curl_creader_set_mime(data, &data->set.mimepost);
+      result = Curl_mime_rewind(&data->set.mimepost);
+
     if(result)
       return result;
-    data->state.infilesize = Curl_creader_client_length(data);
-  }
-  else
-#endif
-  {
-    result = Curl_creader_set_fread(data, data->state.infilesize);
-    if(result)
-      return result;
+
+    data->state.infilesize = Curl_mime_size(&data->set.mimepost);
+
+    /* Read from mime structure. */
+    data->state.fread_func = (curl_read_callback) Curl_mime_read;
+    data->state.in = (void *) &data->set.mimepost;
   }
 
   /* Check we know the size of the upload */
@@ -821,7 +820,7 @@ static CURLcode imap_perform_append(struct Curl_easy *data)
   free(mailbox);
 
   if(!result)
-    imap_state(data, IMAP_APPEND);
+    state(data, IMAP_APPEND);
 
   return result;
 }
@@ -847,7 +846,7 @@ static CURLcode imap_perform_search(struct Curl_easy *data)
   result = imap_sendf(data, "SEARCH %s", imap->query);
 
   if(!result)
-    imap_state(data, IMAP_SEARCH);
+    state(data, IMAP_SEARCH);
 
   return result;
 }
@@ -864,7 +863,7 @@ static CURLcode imap_perform_logout(struct Curl_easy *data)
   CURLcode result = imap_sendf(data, "LOGOUT");
 
   if(!result)
-    imap_state(data, IMAP_LOGOUT);
+    state(data, IMAP_LOGOUT);
 
   return result;
 }
@@ -899,7 +898,7 @@ static CURLcode imap_state_capability_resp(struct Curl_easy *data,
   CURLcode result = CURLE_OK;
   struct connectdata *conn = data->conn;
   struct imap_conn *imapc = &conn->proto.imapc;
-  const char *line = Curl_dyn_ptr(&imapc->pp.recvbuf);
+  const char *line = data->state.buffer;
 
   (void)instate; /* no use for this yet */
 
@@ -985,7 +984,7 @@ static CURLcode imap_state_starttls_resp(struct Curl_easy *data,
   (void)instate; /* no use for this yet */
 
   /* Pipelining in response is forbidden. */
-  if(data->conn->proto.imapc.pp.overflow)
+  if(data->conn->proto.imapc.pp.cache_size)
     return CURLE_WEIRD_SERVER_REPLY;
 
   if(imapcode != IMAP_RESP_OK) {
@@ -1018,7 +1017,7 @@ static CURLcode imap_state_auth_resp(struct Curl_easy *data,
   if(!result)
     switch(progress) {
     case SASL_DONE:
-      imap_state(data, IMAP_STOP);  /* Authenticated */
+      state(data, IMAP_STOP);  /* Authenticated */
       break;
     case SASL_IDLE:            /* No mechanism left after cancellation */
       if((!imapc->login_disabled) && (imapc->preftype & IMAP_TYPE_CLEARTEXT))
@@ -1050,7 +1049,7 @@ static CURLcode imap_state_login_resp(struct Curl_easy *data,
   }
   else
     /* End of connect phase */
-    imap_state(data, IMAP_STOP);
+    state(data, IMAP_STOP);
 
   return result;
 }
@@ -1061,18 +1060,22 @@ static CURLcode imap_state_listsearch_resp(struct Curl_easy *data,
                                            imapstate instate)
 {
   CURLcode result = CURLE_OK;
-  char *line = Curl_dyn_ptr(&data->conn->proto.imapc.pp.recvbuf);
-  size_t len = data->conn->proto.imapc.pp.nfinal;
+  char *line = data->state.buffer;
+  size_t len = strlen(line);
 
   (void)instate; /* No use for this yet */
 
-  if(imapcode == '*')
-    result = Curl_client_write(data, CLIENTWRITE_BODY, line, len);
+  if(imapcode == '*') {
+    /* Temporarily add the LF character back and send as body to the client */
+    line[len] = '\n';
+    result = Curl_client_write(data, CLIENTWRITE_BODY, line, len + 1);
+    line[len] = '\0';
+  }
   else if(imapcode != IMAP_RESP_OK)
     result = CURLE_QUOTE_ERROR;
   else
     /* End of DO phase */
-    imap_state(data, IMAP_STOP);
+    state(data, IMAP_STOP);
 
   return result;
 }
@@ -1085,25 +1088,16 @@ static CURLcode imap_state_select_resp(struct Curl_easy *data, int imapcode,
   struct connectdata *conn = data->conn;
   struct IMAP *imap = data->req.p.imap;
   struct imap_conn *imapc = &conn->proto.imapc;
-  const char *line = Curl_dyn_ptr(&data->conn->proto.imapc.pp.recvbuf);
+  const char *line = data->state.buffer;
 
   (void)instate; /* no use for this yet */
 
   if(imapcode == '*') {
     /* See if this is an UIDVALIDITY response */
-    if(checkprefix("OK [UIDVALIDITY ", line + 2)) {
-      size_t len = 0;
-      const char *p = &line[2] + strlen("OK [UIDVALIDITY ");
-      while((len < 20) && p[len] && ISDIGIT(p[len]))
-        len++;
-      if(len && (p[len] == ']')) {
-        struct dynbuf uid;
-        Curl_dyn_init(&uid, 20);
-        if(Curl_dyn_addn(&uid, p, len))
-          return CURLE_OUT_OF_MEMORY;
-        Curl_safefree(imapc->mailbox_uidvalidity);
-        imapc->mailbox_uidvalidity = Curl_dyn_ptr(&uid);
-      }
+    char tmp[20];
+    if(sscanf(line + 2, "OK [UIDVALIDITY %19[0123456789]]", tmp) == 1) {
+      Curl_safefree(imapc->mailbox_uidvalidity);
+      imapc->mailbox_uidvalidity = strdup(tmp);
     }
   }
   else if(imapcode == IMAP_RESP_OK) {
@@ -1115,10 +1109,7 @@ static CURLcode imap_state_select_resp(struct Curl_easy *data, int imapcode,
     }
     else {
       /* Note the currently opened mailbox on this connection */
-      DEBUGASSERT(!imapc->mailbox);
       imapc->mailbox = strdup(imap->mailbox);
-      if(!imapc->mailbox)
-        return CURLE_OUT_OF_MEMORY;
 
       if(imap->custom)
         result = imap_perform_list(data);
@@ -1144,8 +1135,7 @@ static CURLcode imap_state_fetch_resp(struct Curl_easy *data,
   CURLcode result = CURLE_OK;
   struct imap_conn *imapc = &conn->proto.imapc;
   struct pingpong *pp = &imapc->pp;
-  const char *ptr = Curl_dyn_ptr(&data->conn->proto.imapc.pp.recvbuf);
-  size_t len = data->conn->proto.imapc.pp.nfinal;
+  const char *ptr = data->state.buffer;
   bool parsed = FALSE;
   curl_off_t size = 0;
 
@@ -1153,18 +1143,22 @@ static CURLcode imap_state_fetch_resp(struct Curl_easy *data,
 
   if(imapcode != '*') {
     Curl_pgrsSetDownloadSize(data, -1);
-    imap_state(data, IMAP_STOP);
+    state(data, IMAP_STOP);
     return CURLE_REMOTE_FILE_NOT_FOUND;
   }
 
   /* Something like this is received "* 1 FETCH (BODY[TEXT] {2021}\r" so parse
      the continuation data contained within the curly brackets */
-  ptr = memchr(ptr, '{', len);
-  if(ptr) {
+  while(*ptr && (*ptr != '{'))
+    ptr++;
+
+  if(*ptr == '{') {
     char *endptr;
-    if(!curlx_strtoofft(ptr + 1, &endptr, 10, &size) &&
-       (endptr - ptr > 1 && *endptr == '}'))
-      parsed = TRUE;
+    if(!curlx_strtoofft(ptr + 1, &endptr, 10, &size)) {
+      if(endptr - ptr > 1 && endptr[0] == '}' &&
+         endptr[1] == '\r' && endptr[2] == '\0')
+        parsed = TRUE;
+    }
   }
 
   if(parsed) {
@@ -1172,66 +1166,65 @@ static CURLcode imap_state_fetch_resp(struct Curl_easy *data,
           size);
     Curl_pgrsSetDownloadSize(data, size);
 
-    if(pp->overflow) {
-      /* At this point there is a data in the receive buffer that is body
-         content, send it as body and then skip it. Do note that there may
-         even be additional "headers" after the body. */
-      size_t chunk = pp->overflow;
-
-      /* keep only the overflow */
-      Curl_dyn_tail(&pp->recvbuf, chunk);
-      pp->nfinal = 0; /* done */
+    if(pp->cache) {
+      /* At this point there is a bunch of data in the header "cache" that is
+         actually body content, send it as body and then skip it. Do note
+         that there may even be additional "headers" after the body. */
+      size_t chunk = pp->cache_size;
 
       if(chunk > (size_t)size)
         /* The conversion from curl_off_t to size_t is always fine here */
         chunk = (size_t)size;
 
       if(!chunk) {
-        /* no size, we are done with the data */
-        imap_state(data, IMAP_STOP);
+        /* no size, we're done with the data */
+        state(data, IMAP_STOP);
         return CURLE_OK;
       }
-      result = Curl_client_write(data, CLIENTWRITE_BODY,
-                                 Curl_dyn_ptr(&pp->recvbuf), chunk);
+      result = Curl_client_write(data, CLIENTWRITE_BODY, pp->cache, chunk);
       if(result)
         return result;
+
+      data->req.bytecount += chunk;
 
       infof(data, "Written %zu bytes, %" CURL_FORMAT_CURL_OFF_TU
             " bytes are left for transfer", chunk, size - chunk);
 
-      /* Have we used the entire overflow or just part of it?*/
-      if(pp->overflow > chunk) {
-        /* remember the remaining trailing overflow data */
-        pp->overflow -= chunk;
-        Curl_dyn_tail(&pp->recvbuf, pp->overflow);
+      /* Have we used the entire cache or just part of it?*/
+      if(pp->cache_size > chunk) {
+        /* Only part of it so shrink the cache to fit the trailing data */
+        memmove(pp->cache, pp->cache + chunk, pp->cache_size - chunk);
+        pp->cache_size -= chunk;
       }
       else {
-        pp->overflow = 0; /* handled */
         /* Free the cache */
-        Curl_dyn_reset(&pp->recvbuf);
+        Curl_safefree(pp->cache);
+
+        /* Reset the cache size */
+        pp->cache_size = 0;
       }
     }
 
     if(data->req.bytecount == size)
       /* The entire data is already transferred! */
-      Curl_xfer_setup_nop(data);
+      Curl_setup_transfer(data, -1, -1, FALSE, -1);
     else {
       /* IMAP download */
       data->req.maxdownload = size;
       /* force a recv/send check of this connection, as the data might've been
        read off the socket already */
-      data->state.select_bits = CURL_CSELECT_IN;
-      Curl_xfer_setup1(data, CURL_XFER_RECV, size, FALSE);
+      data->conn->cselect_bits = CURL_CSELECT_IN;
+      Curl_setup_transfer(data, FIRSTSOCKET, size, FALSE, -1);
     }
   }
   else {
-    /* We do not know how to parse this line */
+    /* We don't know how to parse this line */
     failf(data, "Failed to parse FETCH response.");
     result = CURLE_WEIRD_SERVER_REPLY;
   }
 
   /* End of DO phase */
-  imap_state(data, IMAP_STOP);
+  state(data, IMAP_STOP);
 
   return result;
 }
@@ -1249,7 +1242,7 @@ static CURLcode imap_state_fetch_final_resp(struct Curl_easy *data,
     result = CURLE_WEIRD_SERVER_REPLY;
   else
     /* End of DONE phase */
-    imap_state(data, IMAP_STOP);
+    state(data, IMAP_STOP);
 
   return result;
 }
@@ -1269,10 +1262,10 @@ static CURLcode imap_state_append_resp(struct Curl_easy *data, int imapcode,
     Curl_pgrsSetUploadSize(data, data->state.infilesize);
 
     /* IMAP upload */
-    Curl_xfer_setup1(data, CURL_XFER_SEND, -1, FALSE);
+    Curl_setup_transfer(data, -1, -1, FALSE, FIRSTSOCKET);
 
     /* End of DO phase */
-    imap_state(data, IMAP_STOP);
+    state(data, IMAP_STOP);
   }
 
   return result;
@@ -1291,7 +1284,7 @@ static CURLcode imap_state_append_final_resp(struct Curl_easy *data,
     result = CURLE_UPLOAD_FAILED;
   else
     /* End of DONE phase */
-    imap_state(data, IMAP_STOP);
+    state(data, IMAP_STOP);
 
   return result;
 }
@@ -1300,6 +1293,7 @@ static CURLcode imap_statemachine(struct Curl_easy *data,
                                   struct connectdata *conn)
 {
   CURLcode result = CURLE_OK;
+  curl_socket_t sock = conn->sock[FIRSTSOCKET];
   int imapcode;
   struct imap_conn *imapc = &conn->proto.imapc;
   struct pingpong *pp = &imapc->pp;
@@ -1316,7 +1310,7 @@ static CURLcode imap_statemachine(struct Curl_easy *data,
 
   do {
     /* Read the response from the server */
-    result = Curl_pp_readresp(data, FIRSTSOCKET, pp, &imapcode, &nread);
+    result = Curl_pp_readresp(data, sock, pp, &imapcode, &nread);
     if(result)
       return result;
 
@@ -1375,9 +1369,10 @@ static CURLcode imap_statemachine(struct Curl_easy *data,
       break;
 
     case IMAP_LOGOUT:
+      /* fallthrough, just stop! */
     default:
       /* internal error */
-      imap_state(data, IMAP_STOP);
+      state(data, IMAP_STOP);
       break;
     }
   } while(!result && imapc->state != IMAP_STOP && Curl_pp_moredata(pp));
@@ -1426,7 +1421,7 @@ static CURLcode imap_init(struct Curl_easy *data)
   CURLcode result = CURLE_OK;
   struct IMAP *imap;
 
-  imap = data->req.p.imap = calloc(1, sizeof(struct IMAP));
+  imap = data->req.p.imap = calloc(sizeof(struct IMAP), 1);
   if(!imap)
     result = CURLE_OUT_OF_MEMORY;
 
@@ -1470,7 +1465,9 @@ static CURLcode imap_connect(struct Curl_easy *data, bool *done)
   Curl_sasl_init(&imapc->sasl, data, &saslimap);
 
   Curl_dyn_init(&imapc->dyn, DYN_IMAP_CMD);
-  Curl_pp_init(pp);
+  /* Initialise the pingpong layer */
+  Curl_pp_setup(pp);
+  Curl_pp_init(data, pp);
 
   /* Parse the URL options */
   result = imap_parse_url_options(conn);
@@ -1478,7 +1475,7 @@ static CURLcode imap_connect(struct Curl_easy *data, bool *done)
     return result;
 
   /* Start off waiting for the server greeting response */
-  imap_state(data, IMAP_SERVERGREET);
+  state(data, IMAP_SERVERGREET);
 
   /* Start off with an response id of '*' */
   strcpy(imapc->resptag, "*");
@@ -1515,16 +1512,16 @@ static CURLcode imap_done(struct Curl_easy *data, CURLcode status,
   }
   else if(!data->set.connect_only && !imap->custom &&
           (imap->uid || imap->mindex || data->state.upload ||
-          IS_MIME_POST(data))) {
+          data->set.mimepost.kind != MIMEKIND_NONE)) {
     /* Handle responses after FETCH or APPEND transfer has finished */
 
-    if(!data->state.upload && !IS_MIME_POST(data))
-      imap_state(data, IMAP_FETCH_FINAL);
+    if(!data->state.upload && data->set.mimepost.kind == MIMEKIND_NONE)
+      state(data, IMAP_FETCH_FINAL);
     else {
       /* End the APPEND command first by sending an empty line */
       result = Curl_pp_sendf(data, &conn->proto.imapc.pp, "%s", "");
       if(!result)
-        imap_state(data, IMAP_APPEND_FINAL);
+        state(data, IMAP_APPEND_FINAL);
     }
 
     /* Run the state-machine */
@@ -1584,7 +1581,7 @@ static CURLcode imap_perform(struct Curl_easy *data, bool *connected,
     selected = TRUE;
 
   /* Start the first command in the DO phase */
-  if(data->state.upload || IS_MIME_POST(data))
+  if(data->state.upload || data->set.mimepost.kind != MIMEKIND_NONE)
     /* APPEND can be executed directly */
     result = imap_perform_append(data);
   else if(imap->custom && (selected || !imap->mailbox))
@@ -1694,7 +1691,7 @@ static CURLcode imap_dophase_done(struct Curl_easy *data, bool connected)
 
   if(imap->transfer != PPTRANSFER_BODY)
     /* no data to transfer */
-    Curl_xfer_setup_nop(data);
+    Curl_setup_transfer(data, -1, -1, FALSE, -1);
 
   return CURLE_OK;
 }
@@ -1780,7 +1777,7 @@ static CURLcode imap_sendf(struct Curl_easy *data, const char *fmt, ...)
 
   /* Calculate the tag based on the connection ID and command ID */
   msnprintf(imapc->resptag, sizeof(imapc->resptag), "%c%03d",
-            'A' + curlx_sltosi((long)(data->conn->connection_id % 26)),
+            'A' + curlx_sltosi(data->conn->connection_id % 26),
             ++imapc->cmdid);
 
   /* start with a blank buffer */
@@ -1791,14 +1788,7 @@ static CURLcode imap_sendf(struct Curl_easy *data, const char *fmt, ...)
   if(!result) {
     va_list ap;
     va_start(ap, fmt);
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wformat-nonliteral"
-#endif
     result = Curl_pp_vsendf(data, &imapc->pp, Curl_dyn_ptr(&imapc->dyn), ap);
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
     va_end(ap);
   }
   return result;
@@ -1816,37 +1806,79 @@ static CURLcode imap_sendf(struct Curl_easy *data, const char *fmt, ...)
  */
 static char *imap_atom(const char *str, bool escape_only)
 {
-  struct dynbuf line;
-  size_t nclean;
-  size_t len;
+  /* !checksrc! disable PARENBRACE 1 */
+  const char atom_specials[] = "(){ %*]";
+  const char *p1;
+  char *p2;
+  size_t backsp_count = 0;
+  size_t quote_count = 0;
+  bool others_exists = FALSE;
+  size_t newlen = 0;
+  char *newstr = NULL;
 
   if(!str)
     return NULL;
 
-  len = strlen(str);
-  nclean = strcspn(str, "() {%*]\\\"");
-  if(len == nclean)
-    /* nothing to escape, return a strdup */
-    return strdup(str);
+  /* Look for "atom-specials", counting the backslash and quote characters as
+     these will need escaping */
+  p1 = str;
+  while(*p1) {
+    if(*p1 == '\\')
+      backsp_count++;
+    else if(*p1 == '"')
+      quote_count++;
+    else if(!escape_only) {
+      const char *p3 = atom_specials;
 
-  Curl_dyn_init(&line, 2000);
+      while(*p3 && !others_exists) {
+        if(*p1 == *p3)
+          others_exists = TRUE;
 
-  if(!escape_only && Curl_dyn_addn(&line, "\"", 1))
-    return NULL;
+        p3++;
+      }
+    }
 
-  while(*str) {
-    if((*str == '\\' || *str == '"') &&
-       Curl_dyn_addn(&line, "\\", 1))
-      return NULL;
-    if(Curl_dyn_addn(&line, str, 1))
-      return NULL;
-    str++;
+    p1++;
   }
 
-  if(!escape_only && Curl_dyn_addn(&line, "\"", 1))
+  /* Does the input contain any "atom-special" characters? */
+  if(!backsp_count && !quote_count && !others_exists)
+    return strdup(str);
+
+  /* Calculate the new string length */
+  newlen = strlen(str) + backsp_count + quote_count + (escape_only ? 0 : 2);
+
+  /* Allocate the new string */
+  newstr = (char *) malloc((newlen + 1) * sizeof(char));
+  if(!newstr)
     return NULL;
 
-  return Curl_dyn_ptr(&line);
+  /* Surround the string in quotes if necessary */
+  p2 = newstr;
+  if(!escape_only) {
+    newstr[0] = '"';
+    newstr[newlen - 1] = '"';
+    p2++;
+  }
+
+  /* Copy the string, escaping backslash and quote characters along the way */
+  p1 = str;
+  while(*p1) {
+    if(*p1 == '\\' || *p1 == '"') {
+      *p2 = '\\';
+      p2++;
+    }
+
+   *p2 = *p1;
+
+    p1++;
+    p2++;
+  }
+
+  /* Terminate the string */
+  newstr[newlen] = '\0';
+
+  return newstr;
 }
 
 /***********************************************************************
@@ -1893,7 +1925,6 @@ static CURLcode imap_parse_url_options(struct connectdata *conn)
   CURLcode result = CURLE_OK;
   struct imap_conn *imapc = &conn->proto.imapc;
   const char *ptr = conn->options;
-  bool prefer_login = false;
 
   while(!result && ptr && *ptr) {
     const char *key = ptr;
@@ -1907,39 +1938,26 @@ static CURLcode imap_parse_url_options(struct connectdata *conn)
     while(*ptr && *ptr != ';')
       ptr++;
 
-    if(strncasecompare(key, "AUTH=+LOGIN", 11)) {
-      /* User prefers plaintext LOGIN over any SASL, including SASL LOGIN */
-      prefer_login = true;
-      imapc->sasl.prefmech = SASL_AUTH_NONE;
-    }
-    else if(strncasecompare(key, "AUTH=", 5)) {
-      prefer_login = false;
+    if(strncasecompare(key, "AUTH=", 5))
       result = Curl_sasl_parse_url_auth_option(&imapc->sasl,
                                                value, ptr - value);
-    }
-    else {
-      prefer_login = false;
+    else
       result = CURLE_URL_MALFORMAT;
-    }
 
     if(*ptr == ';')
       ptr++;
   }
 
-  if(prefer_login)
-    imapc->preftype = IMAP_TYPE_CLEARTEXT;
-  else {
-    switch(imapc->sasl.prefmech) {
-    case SASL_AUTH_NONE:
-      imapc->preftype = IMAP_TYPE_NONE;
-      break;
-    case SASL_AUTH_DEFAULT:
-      imapc->preftype = IMAP_TYPE_ANY;
-      break;
-    default:
-      imapc->preftype = IMAP_TYPE_SASL;
-      break;
-    }
+  switch(imapc->sasl.prefmech) {
+  case SASL_AUTH_NONE:
+    imapc->preftype = IMAP_TYPE_NONE;
+    break;
+  case SASL_AUTH_DEFAULT:
+    imapc->preftype = IMAP_TYPE_ANY;
+    break;
+  default:
+    imapc->preftype = IMAP_TYPE_SASL;
+    break;
   }
 
   return result;

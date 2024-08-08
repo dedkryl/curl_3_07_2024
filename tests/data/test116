@@ -23,21 +23,18 @@ ftp
 </server>
 # EPRT is only sent when IPv6 is enabled
 <features>
-IPv6
+ipv6
 </features>
-<name>
+ <name>
 FTP download, failed PORT
-</name>
-<command>
+ </name>
+ <command>
 ftp://%HOSTIP:%FTPPORT/%TESTNUMBER -P 1.2.3.4
 </command>
 </client>
 
 # Verify data after the test has been "shot"
 <verify>
-<strip>
-QUIT
-</strip>
 <errorcode>
 30
 </errorcode>

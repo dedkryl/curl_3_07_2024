@@ -1,14 +1,10 @@
-<!--
-Copyright (C) Daniel Stenberg, <daniel@haxx.se>, et al.
-
-SPDX-License-Identifier: curl
--->
-
 curl release procedure - how to do a release
 ============================================
 
 in the source code repo
 -----------------------
+
+- run `./scripts/copyright.pl` and correct possible omissions
 
 - edit `RELEASE-NOTES` to be accurate
 
@@ -20,7 +16,10 @@ in the source code repo
   tag and we use underscores instead of dots in the version number. Make sure
   the tag is GPG signed (using -s).
 
-- run `./scripts/dmaketgz 7.34.0` to build the release tarballs.
+- run `./maketgz 7.34.0` to build the release tarballs. It is important that
+  you run this on a machine with the correct set of autotools etc installed
+  as this is what then will be shipped and used by most users on \*nix like
+  systems.
 
 - push the git commits and the new tag
 
@@ -108,11 +107,11 @@ Coming dates
 Based on the description above, here are some planned release dates (at the
 time of this writing):
 
-- September 11, 2024
-- November 6, 2024
-- January 8, 2025
-- March 5, 2025
-- April 30, 2025
-- June 25, 2025
-- August 20, 2025
-- October 15, 2025
+- May 17, 2023
+- July 19, 2023
+- September 6, 2023
+- November 1, 2023
+- December 27, 2023
+- February 21, 2024
+- April 17, 2024
+- June 12, 2024

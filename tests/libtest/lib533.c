@@ -33,9 +33,9 @@
 
 #define TEST_HANG_TIMEOUT 60 * 1000
 
-CURLcode test(char *URL)
+int test(char *URL)
 {
-  CURLcode res = CURLE_OK;
+  int res = 0;
   CURL *curl = NULL;
   int running;
   CURLM *m = NULL;
@@ -75,7 +75,7 @@ CURLcode test(char *URL)
         /* remove the handle we use */
         curl_multi_remove_handle(m, curl);
 
-        /* make us reuse the same handle all the time, and try resetting
+        /* make us re-use the same handle all the time, and try resetting
            the handle first too */
         curl_easy_reset(curl);
         easy_setopt(curl, CURLOPT_URL, libtest_arg2);

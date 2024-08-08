@@ -27,7 +27,7 @@
 
 #include <curl/multi.h>
 
-CURLcode test(char *URL)
+int test(char *URL)
 {
   CURL *curl;
   CURLcode res = CURLE_OK;
@@ -39,15 +39,11 @@ CURLcode test(char *URL)
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
     res = curl_easy_perform(curl);
-    if(res)
-      goto test_cleanup;
 
     fprintf(stderr, "****************************** Do it again\n");
     res = curl_easy_perform(curl);
+    curl_easy_cleanup(curl);
   }
-
-test_cleanup:
-  curl_easy_cleanup(curl);
   curl_global_cleanup();
-  return res;
+  return (int)res;
 }

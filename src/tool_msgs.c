@@ -29,8 +29,6 @@
 
 #include "tool_cfgable.h"
 #include "tool_msgs.h"
-#include "tool_cb_prg.h"
-#include "terminal.h"
 
 #include "memdebug.h" /* keep this as LAST include */
 
@@ -41,15 +39,9 @@
 static void voutf(struct GlobalConfig *config,
                   const char *prefix,
                   const char *fmt,
-                  va_list ap) CURL_PRINTF(3, 0);
-
-static void voutf(struct GlobalConfig *config,
-                  const char *prefix,
-                  const char *fmt,
                   va_list ap)
 {
-  size_t width = (get_terminal_columns() - strlen(prefix));
-  DEBUGASSERT(!strchr(fmt, '\n'));
+  size_t width = (79 - strlen(prefix));
   if(!config->silent) {
     size_t len;
     char *ptr;
@@ -62,7 +54,7 @@ static void voutf(struct GlobalConfig *config,
 
     ptr = print_buffer;
     while(len > 0) {
-      fputs(prefix, tool_stderr);
+      fputs(prefix, stderr);
 
       if(len > width) {
         size_t cut = width-1;
@@ -75,14 +67,13 @@ static void voutf(struct GlobalConfig *config,
              max text width then! */
           cut = width-1;
 
-        (void)fwrite(ptr, cut + 1, 1, tool_stderr);
-        fputs("\n", tool_stderr);
+        (void)fwrite(ptr, cut + 1, 1, stderr);
+        fputs("\n", stderr);
         ptr += cut + 1; /* skip the space too */
         len -= cut + 1;
       }
       else {
-        fputs(ptr, tool_stderr);
-        fputs("\n", tool_stderr);
+        fputs(ptr, stderr);
         len = 0;
       }
     }
@@ -107,6 +98,7 @@ void notef(struct GlobalConfig *config, const char *fmt, ...)
  * Emit warning formatted message on configured 'errors' stream unless
  * mute (--silent) was selected.
  */
+
 void warnf(struct GlobalConfig *config, const char *fmt, ...)
 {
   va_list ap;
@@ -114,7 +106,6 @@ void warnf(struct GlobalConfig *config, const char *fmt, ...)
   voutf(config, WARN_PREFIX, fmt, ap);
   va_end(ap);
 }
-
 /*
  * Emit help formatted message on given stream. This is for errors with or
  * related to command line arguments.
@@ -124,11 +115,9 @@ void helpf(FILE *errors, const char *fmt, ...)
   if(fmt) {
     va_list ap;
     va_start(ap, fmt);
-    DEBUGASSERT(!strchr(fmt, '\n'));
     fputs("curl: ", errors); /* prefix it */
     vfprintf(errors, fmt, ap);
     va_end(ap);
-    fputs("\n", errors); /* newline it */
   }
   fprintf(errors, "curl: try 'curl --help' "
 #ifdef USE_MANUAL
@@ -143,7 +132,7 @@ void helpf(FILE *errors, const char *fmt, ...)
  */
 void errorf(struct GlobalConfig *config, const char *fmt, ...)
 {
-  if(!config->silent || config->showerror) {
+  if(!config->silent) {
     va_list ap;
     va_start(ap, fmt);
     voutf(config, ERROR_PREFIX, fmt, ap);

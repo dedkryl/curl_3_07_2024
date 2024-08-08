@@ -68,7 +68,7 @@ static const struct testparams params[] = {
   { F_RESUME | F_HTTP416 |          F_CONTENTRANGE | F_IGNOREBODY, CURLE_OK },
   { F_RESUME | F_HTTP416 | F_FAIL |                  F_IGNOREBODY, CURLE_OK },
   { F_RESUME | F_HTTP416 | F_FAIL | F_CONTENTRANGE | F_IGNOREBODY,
-                                                                   CURLE_OK }
+                                                  CURLE_HTTP_RETURNED_ERROR }
 };
 
 static int      hasbody;
@@ -103,7 +103,7 @@ static int onetest(CURL *curl, const char *url, const struct testparams *p,
   hasbody = 0;
   res = curl_easy_perform(curl);
   if(res != p->result) {
-    printf("%zd: bad error code (%d): resume=%s, fail=%s, http416=%s, "
+    printf("%d: bad error code (%d): resume=%s, fail=%s, http416=%s, "
            "content-range=%s, expected=%d\n", num, res,
            (p->flags & F_RESUME)? "yes": "no",
            (p->flags & F_FAIL)? "yes": "no",
@@ -131,7 +131,7 @@ test_cleanup:
 /* for debugging: */
 /* #define SINGLETEST 9 */
 
-CURLcode test(char *URL)
+int test(char *URL)
 {
   CURLcode res;
   CURL *curl;
@@ -162,12 +162,12 @@ CURLcode test(char *URL)
 
   curl_global_cleanup();
   printf("%d\n", status);
-  return (CURLcode)status;
+  return status;
 
 test_cleanup:
 
   curl_easy_cleanup(curl);
   curl_global_cleanup();
 
-  return res;
+  return (int)res;
 }

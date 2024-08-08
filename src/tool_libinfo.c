@@ -33,7 +33,7 @@
 
 #include "memdebug.h" /* keep this as LAST include */
 
-/* global variable definitions, for libcurl runtime info */
+/* global variable definitions, for libcurl run-time info */
 
 static const char *no_protos = NULL;
 
@@ -51,8 +51,6 @@ const char *proto_rtsp = NULL;
 const char *proto_scp = NULL;
 const char *proto_sftp = NULL;
 const char *proto_tftp = NULL;
-const char *proto_ipfs = "ipfs";
-const char *proto_ipns = "ipns";
 
 static struct proto_name_tokenp {
   const char   *proto_name;
@@ -75,7 +73,6 @@ bool feature_brotli = FALSE;
 bool feature_hsts = FALSE;
 bool feature_http2 = FALSE;
 bool feature_http3 = FALSE;
-bool feature_httpsproxy = FALSE;
 bool feature_libz = FALSE;
 bool feature_ntlm = FALSE;
 bool feature_ntlm_wb = FALSE;
@@ -100,7 +97,7 @@ static struct feature_name_presentp {
   {"HSTS",           &feature_hsts,       CURL_VERSION_HSTS},
   {"HTTP2",          &feature_http2,      CURL_VERSION_HTTP2},
   {"HTTP3",          &feature_http3,      CURL_VERSION_HTTP3},
-  {"HTTPS-proxy",    &feature_httpsproxy, CURL_VERSION_HTTPS_PROXY},
+  {"HTTPS-proxy",    NULL,                CURL_VERSION_HTTPS_PROXY},
   {"IDN",            NULL,                CURL_VERSION_IDN},
   {"IPv6",           NULL,                CURL_VERSION_IPV6},
   {"Kerberos",       NULL,                CURL_VERSION_KERBEROS5},
@@ -124,11 +121,10 @@ static struct feature_name_presentp {
 
 static const char *fnames[sizeof(maybe_feature) / sizeof(maybe_feature[0])];
 const char * const *feature_names = fnames;
-size_t feature_count;
 
 /*
- * libcurl_info_init: retrieves runtime information about libcurl,
- * setting a global pointer 'curlinfo' to libcurl's runtime info
+ * libcurl_info_init: retrieves run-time information about libcurl,
+ * setting a global pointer 'curlinfo' to libcurl's run-time info
  * struct, count protocols and flag those we are interested in.
  * Global pointer feature_names is set to the feature names array. If
  * the latter is not returned by curl_version_info(), it is built from
@@ -140,7 +136,7 @@ CURLcode get_libcurl_info(void)
   CURLcode result = CURLE_OK;
   const char *const *builtin;
 
-  /* Pointer to libcurl's runtime version information */
+  /* Pointer to libcurl's run-time version information */
   curlinfo = curl_version_info(CURLVERSION_NOW);
   if(!curlinfo)
     return CURLE_FAILED_INIT;
@@ -183,7 +179,6 @@ CURLcode get_libcurl_info(void)
           *p->feature_presentp = TRUE;
         break;
       }
-    ++feature_count;
   }
 
   return CURLE_OK;

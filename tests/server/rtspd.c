@@ -29,7 +29,9 @@
  * This source file was started based on curl's HTTP test suite server.
  */
 
+#ifdef HAVE_SIGNAL_H
 #include <signal.h>
+#endif
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
@@ -64,7 +66,7 @@
 #define ERANGE  34 /* errno.h value */
 #endif
 
-#ifdef USE_IPV6
+#ifdef ENABLE_IPV6
 static bool use_ipv6 = FALSE;
 #endif
 static const char *ipv_inuse = "IPv4";
@@ -89,10 +91,10 @@ typedef enum {
   RPROT_HTTP = 2
 } reqprot_t;
 
-#define SET_RTP_PKT_CHN(p,c)  ((p)[1] = (char)((c) & 0xFF))
+#define SET_RTP_PKT_CHN(p,c)  ((p)[1] = (unsigned char)((c) & 0xFF))
 
-#define SET_RTP_PKT_LEN(p,l) (((p)[2] = (char)(((l) >> 8) & 0xFF)), \
-                              ((p)[3] = (char)((l) & 0xFF)))
+#define SET_RTP_PKT_LEN(p,l) (((p)[2] = (unsigned char)(((l) >> 8) & 0xFF)), \
+                              ((p)[3] = (unsigned char)((l) & 0xFF)))
 
 struct httprequest {
   char reqbuf[REQBUFSIZ]; /* buffer area for the incoming request */
@@ -106,7 +108,7 @@ struct httprequest {
   bool auth;      /* Authorization header present in the incoming request */
   size_t cl;      /* Content-Length of the incoming request */
   bool digest;    /* Authorization digest header found */
-  bool ntlm;      /* Authorization NTLM header found */
+  bool ntlm;      /* Authorization ntlm header found */
   int pipe;       /* if non-zero, expect this many requests to do a "piped"
                      request/response */
   int skip;       /* if non-zero, the server is instructed to not read this
@@ -131,8 +133,8 @@ static void storerequest(char *reqbuf, size_t totalsize);
 #endif
 
 const char *serverlogfile = DEFAULT_LOGFILE;
-static const char *logdir = "log";
-static char loglockfile[256];
+const char *logdir = "log";
+char loglockfile[256];
 
 #define RTSPDVERSION "curl test suite RTSP server/0.1"
 
@@ -715,7 +717,7 @@ static int get_request(curl_socket_t sock, struct httprequest *req)
     }
     else if(got < 0) {
       error = SOCKERRNO;
-      logmsg("recv() returned error: (%d) %s", error, sstrerror(error));
+      logmsg("recv() returned error: (%d) %s", error, strerror(error));
       fail = 1;
     }
     if(fail) {
@@ -1074,7 +1076,7 @@ int main(int argc, char *argv[])
       printf("rtspd IPv4%s"
              "\n"
              ,
-#ifdef USE_IPV6
+#ifdef ENABLE_IPV6
              "/IPv6"
 #else
              ""
@@ -1103,14 +1105,14 @@ int main(int argc, char *argv[])
         logdir = argv[arg++];
     }
     else if(!strcmp("--ipv4", argv[arg])) {
-#ifdef USE_IPV6
+#ifdef ENABLE_IPV6
       ipv_inuse = "IPv4";
       use_ipv6 = FALSE;
 #endif
       arg++;
     }
     else if(!strcmp("--ipv6", argv[arg])) {
-#ifdef USE_IPV6
+#ifdef ENABLE_IPV6
       ipv_inuse = "IPv6";
       use_ipv6 = TRUE;
 #endif
@@ -1147,28 +1149,29 @@ int main(int argc, char *argv[])
     }
   }
 
-  msnprintf(loglockfile, sizeof(loglockfile), "%s/%s/rtsp-%s.lock",
-            logdir, SERVERLOGS_LOCKDIR, ipv_inuse);
+  msnprintf(loglockfile, sizeof(loglockfile), "%s/%s",
+            logdir, SERVERLOGS_LOCK);
 
-#ifdef _WIN32
+#ifdef WIN32
   win32_init();
   atexit(win32_cleanup);
 #endif
 
   install_signal_handlers(false);
 
-#ifdef USE_IPV6
+#ifdef ENABLE_IPV6
   if(!use_ipv6)
 #endif
     sock = socket(AF_INET, SOCK_STREAM, 0);
-#ifdef USE_IPV6
+#ifdef ENABLE_IPV6
   else
     sock = socket(AF_INET6, SOCK_STREAM, 0);
 #endif
 
   if(CURL_SOCKET_BAD == sock) {
     error = SOCKERRNO;
-    logmsg("Error creating socket: (%d) %s", error, sstrerror(error));
+    logmsg("Error creating socket: (%d) %s",
+           error, strerror(error));
     goto server_cleanup;
   }
 
@@ -1177,11 +1180,11 @@ int main(int argc, char *argv[])
             (void *)&flag, sizeof(flag))) {
     error = SOCKERRNO;
     logmsg("setsockopt(SO_REUSEADDR) failed with error: (%d) %s",
-           error, sstrerror(error));
+           error, strerror(error));
     goto server_cleanup;
   }
 
-#ifdef USE_IPV6
+#ifdef ENABLE_IPV6
   if(!use_ipv6) {
 #endif
     memset(&me.sa4, 0, sizeof(me.sa4));
@@ -1189,7 +1192,7 @@ int main(int argc, char *argv[])
     me.sa4.sin_addr.s_addr = INADDR_ANY;
     me.sa4.sin_port = htons(port);
     rc = bind(sock, &me.sa, sizeof(me.sa4));
-#ifdef USE_IPV6
+#ifdef ENABLE_IPV6
   }
   else {
     memset(&me.sa6, 0, sizeof(me.sa6));
@@ -1198,11 +1201,11 @@ int main(int argc, char *argv[])
     me.sa6.sin6_port = htons(port);
     rc = bind(sock, &me.sa, sizeof(me.sa6));
   }
-#endif /* USE_IPV6 */
+#endif /* ENABLE_IPV6 */
   if(0 != rc) {
     error = SOCKERRNO;
     logmsg("Error binding socket on port %hu: (%d) %s",
-           port, error, sstrerror(error));
+           port, error, strerror(error));
     goto server_cleanup;
   }
 
@@ -1211,11 +1214,11 @@ int main(int argc, char *argv[])
        port we actually got and update the listener port value with it. */
     curl_socklen_t la_size;
     srvr_sockaddr_union_t localaddr;
-#ifdef USE_IPV6
+#ifdef ENABLE_IPV6
     if(!use_ipv6)
 #endif
       la_size = sizeof(localaddr.sa4);
-#ifdef USE_IPV6
+#ifdef ENABLE_IPV6
     else
       la_size = sizeof(localaddr.sa6);
 #endif
@@ -1223,7 +1226,7 @@ int main(int argc, char *argv[])
     if(getsockname(sock, &localaddr.sa, &la_size) < 0) {
       error = SOCKERRNO;
       logmsg("getsockname() failed with error: (%d) %s",
-             error, sstrerror(error));
+             error, strerror(error));
       sclose(sock);
       goto server_cleanup;
     }
@@ -1231,7 +1234,7 @@ int main(int argc, char *argv[])
     case AF_INET:
       port = ntohs(localaddr.sa4.sin_port);
       break;
-#ifdef USE_IPV6
+#ifdef ENABLE_IPV6
     case AF_INET6:
       port = ntohs(localaddr.sa6.sin6_port);
       break;
@@ -1256,7 +1259,7 @@ int main(int argc, char *argv[])
   if(0 != rc) {
     error = SOCKERRNO;
     logmsg("listen() failed with error: (%d) %s",
-           error, sstrerror(error));
+           error, strerror(error));
     goto server_cleanup;
   }
 
@@ -1283,12 +1286,12 @@ int main(int argc, char *argv[])
     if(CURL_SOCKET_BAD == msgsock) {
       error = SOCKERRNO;
       logmsg("MAJOR ERROR: accept() failed with error: (%d) %s",
-             error, sstrerror(error));
+             error, strerror(error));
       break;
     }
 
     /*
-    ** As soon as this server accepts a connection from the test harness it
+    ** As soon as this server acepts a connection from the test harness it
     ** must set the server logs advisor read lock to indicate that server
     ** logs should not be read until this lock is removed by this server.
     */

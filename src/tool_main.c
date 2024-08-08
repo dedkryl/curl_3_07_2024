@@ -25,14 +25,21 @@
 
 #include <sys/stat.h>
 
-#ifdef _WIN32
+#ifdef WIN32
 #include <tchar.h>
 #endif
 
+#ifdef HAVE_SIGNAL_H
 #include <signal.h>
+#endif
 
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
+#endif
+
+#ifdef USE_NSS
+#include <nspr.h>
+#include <plarenas.h>
 #endif
 
 #define ENABLE_CURLX_PRINTF
@@ -71,7 +78,6 @@ int vms_show = 0;
  * when command-line argument globbing is enabled under the MSYS shell, so turn
  * it off.
  */
-extern int _CRT_glob;
 int _CRT_glob = 0;
 #endif /* __MINGW32__ */
 
@@ -81,7 +87,7 @@ int _CRT_glob = 0;
 #if defined(HAVE_PIPE) && defined(HAVE_FCNTL)
 /*
  * Ensure that file descriptors 0, 1 and 2 (stdin, stdout, stderr) are
- * open before starting to run. Otherwise, the first three network
+ * open before starting to run.  Otherwise, the first three network
  * sockets opened by curl could be used for input sources, downloaded data
  * or error logs as they will effectively be stdin, stdout and/or stderr.
  *
@@ -108,9 +114,9 @@ static void memory_tracking_init(void)
 {
   char *env;
   /* if CURL_MEMDEBUG is set, this starts memory tracking message logging */
-  env = curl_getenv("CURL_MEMDEBUG");
+  env = curlx_getenv("CURL_MEMDEBUG");
   if(env) {
-    /* use the value as filename */
+    /* use the value as file name */
     char fname[CURL_MT_LOGFNAME_BUFSIZE];
     if(strlen(env) >= CURL_MT_LOGFNAME_BUFSIZE)
       env[CURL_MT_LOGFNAME_BUFSIZE-1] = '\0';
@@ -122,7 +128,7 @@ static void memory_tracking_init(void)
        without an alloc! */
   }
   /* if CURL_MEMLIMIT is set, this enables fail-on-alloc-number-N feature */
-  env = curl_getenv("CURL_MEMLIMIT");
+  env = curlx_getenv("CURL_MEMLIMIT");
   if(env) {
     char *endptr;
     long num = strtol(env, &endptr, 10);
@@ -169,17 +175,17 @@ static CURLcode main_init(struct GlobalConfig *config)
         config->first->global = config;
       }
       else {
-        errorf(config, "error retrieving curl library information");
+        errorf(config, "error retrieving curl library information\n");
         free(config->first);
       }
     }
     else {
-      errorf(config, "error initializing curl library");
+      errorf(config, "error initializing curl library\n");
       free(config->first);
     }
   }
   else {
-    errorf(config, "error initializing curl");
+    errorf(config, "error initializing curl\n");
     result = CURLE_FAILED_INIT;
   }
 
@@ -206,6 +212,14 @@ static void main_free(struct GlobalConfig *config)
   /* Cleanup the easy handle */
   /* Main cleanup */
   curl_global_cleanup();
+#ifdef USE_NSS
+  if(PR_Initialized()) {
+    /* prevent valgrind from reporting still reachable mem from NSPR arenas */
+    PL_ArenaFinish();
+    /* prevent valgrind from reporting possibly lost memory (fd cache, ...) */
+    PR_Cleanup();
+  }
+#endif
   free_globalconfig(config);
 
   /* Free the config structures */
@@ -219,8 +233,7 @@ static void main_free(struct GlobalConfig *config)
 */
 #ifdef _UNICODE
 #if defined(__GNUC__)
-/* GCC does not know about wmain() */
-#pragma GCC diagnostic push
+/* GCC doesn't know about wmain() */
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"
 #pragma GCC diagnostic ignored "-Wmissing-declarations"
 #endif
@@ -235,7 +248,7 @@ int main(int argc, char *argv[])
 
   tool_init_stderr();
 
-#ifdef _WIN32
+#ifdef WIN32
   /* Undocumented diagnostic option to list the full paths of all loaded
      modules. This is purposely pre-init. */
   if(argc == 2 && !_tcscmp(argv[1], _T("--dump-module-paths"))) {
@@ -248,13 +261,13 @@ int main(int argc, char *argv[])
   /* win32_init must be called before other init routines. */
   result = win32_init();
   if(result) {
-    errorf(&global, "(%d) Windows-specific init failed", result);
-    return (int)result;
+    fprintf(stderr, "curl: (%d) Windows-specific init failed.\n", result);
+    return result;
   }
 #endif
 
   if(main_checkfds()) {
-    errorf(&global, "out of file descriptors");
+    fprintf(stderr, "curl: out of file descriptors\n");
     return CURLE_FAILED_INIT;
   }
 
@@ -276,7 +289,7 @@ int main(int argc, char *argv[])
     main_free(&global);
   }
 
-#ifdef _WIN32
+#ifdef WIN32
   /* Flush buffers of all streams opened in write or update mode */
   fflush(NULL);
 #endif
@@ -287,11 +300,5 @@ int main(int argc, char *argv[])
   return (int)result;
 #endif
 }
-
-#ifdef _UNICODE
-#ifdef __GNUC__
-#pragma GCC diagnostic pop
-#endif
-#endif
 
 #endif /* ndef UNITTESTS */

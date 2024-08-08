@@ -33,12 +33,14 @@
  *
  */
 
+#ifdef HAVE_SIGNAL_H
 #include <signal.h>
+#endif
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
 #ifdef _XOPEN_SOURCE_EXTENDED
-/* This define is "almost" required to build on HP-UX 11 */
+/* This define is "almost" required to build on HPUX 11 */
 #include <arpa/inet.h>
 #endif
 #ifdef HAVE_NETDB_H
@@ -102,7 +104,7 @@ int main(int argc, char *argv[])
     return 1;
   }
 
-#ifdef _WIN32
+#ifdef WIN32
   win32_init();
   atexit(win32_cleanup);
 #endif

@@ -49,7 +49,7 @@ if test "x$OPT_MBEDTLS" != xno; then
          MBEDTLS_ENABLED=1
          USE_MBEDTLS="yes"
          ssl_msg="mbedTLS"
-         test mbedtls != "$DEFAULT_SSL_BACKEND" || VALID_DEFAULT_SSL_BACKEND=yes
+	 test mbedtls != "$DEFAULT_SSL_BACKEND" || VALID_DEFAULT_SSL_BACKEND=yes
         ], [], -lmbedx509 -lmbedcrypto)
     fi
 
@@ -101,7 +101,6 @@ if test "x$OPT_MBEDTLS" != xno; then
           AC_MSG_NOTICE([Added $mbedtlslib to CURL_LIBRARY_PATH])
         fi
       fi
-      LIBCURL_PC_REQUIRES_PRIVATE="$LIBCURL_PC_REQUIRES_PRIVATE mbedtls"
     fi
 
   fi dnl mbedTLS not disabled
