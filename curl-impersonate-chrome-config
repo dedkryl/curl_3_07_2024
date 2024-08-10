@@ -163,7 +163,7 @@ while test $# -gt 0; do
            CURLLIBDIR=""
         fi
         if test "Xyes" = "Xno"; then
-          echo ${CURLLIBDIR}-lcurl-impersonate-chrome -lnghttp2 -lssl -lcrypto -lzstd -lbrotlidec-static -lbrotlicommon-static -lz -pthread -pthread
+          echo ${CURLLIBDIR}-lcurl-impersonate-chrome -lnghttp2 -lssl -lcrypto -lzstd -lbrotlidec-static -lbrotlicommon-static -lz -ldl -lpthread -pthread
         else
           echo ${CURLLIBDIR}-lcurl-impersonate-chrome
         fi
@@ -174,7 +174,7 @@ while test $# -gt 0; do
 
     --static-libs)
         if test "Xyes" != "Xno" ; then
-          echo "${exec_prefix}/lib/libcurl-impersonate-chrome.a" -L/home/eugene/Summer_2024/CurlImpersonate/Project/MyFork/curl-impersonate_3_07_2024/build/brotli-1.0.9/out/installed/lib -L/home/eugene/Summer_2024/CurlImpersonate/Project/MyFork/curl-impersonate_3_07_2024/build/boringssl/build/lib -L/home/eugene/Summer_2024/CurlImpersonate/Project/MyFork/curl-impersonate_3_07_2024/build/nghttp2-1.56.0/installed/lib -lnghttp2 -lssl -lcrypto -lzstd -lbrotlidec-static -lbrotlicommon-static -lz -pthread -pthread
+          echo "${exec_prefix}/lib/libcurl-impersonate-chrome.a" -L/home/eugene/Summer_2024/CurlImpersonate/Project/MyFork/curl-impersonate_3_07_2024/build/brotli-1.0.9/out/installed/lib -L/home/eugene/Summer_2024/CurlImpersonate/Project/MyFork/curl-impersonate_3_07_2024/build/boringssl/build/lib -L/home/eugene/Summer_2024/CurlImpersonate/Project/MyFork/curl-impersonate_3_07_2024/build/nghttp2-1.56.0/installed/lib -lnghttp2 -lssl -lcrypto -lzstd -lbrotlidec-static -lbrotlicommon-static -lz -ldl -lpthread -pthread
         else
           echo "curl was built with static libraries disabled" >&2
           exit 1
@@ -182,7 +182,7 @@ while test $# -gt 0; do
         ;;
 
     --configure)
-        echo " '--prefix=/usr/local' '--with-nghttp2=/home/eugene/Summer_2024/CurlImpersonate/Project/MyFork/curl-impersonate_3_07_2024/build/nghttp2-1.56.0/installed' '--with-brotli=/home/eugene/Summer_2024/CurlImpersonate/Project/MyFork/curl-impersonate_3_07_2024/build/brotli-1.0.9/out/installed' '--with-openssl=/home/eugene/Summer_2024/CurlImpersonate/Project/MyFork/curl-impersonate_3_07_2024/build/boringssl/build' '--enable-websockets' 'USE_CURL_SSLKEYLOGFILE=true' '--with-zlib' 'LIBS=-pthread'"
+        echo " '--prefix=/usr/local' '--with-nghttp2=/home/eugene/Summer_2024/CurlImpersonate/Project/MyFork/curl-impersonate_3_07_2024/build/nghttp2-1.56.0/installed' '--with-brotli=/home/eugene/Summer_2024/CurlImpersonate/Project/MyFork/curl-impersonate_3_07_2024/build/brotli-1.0.9/out/installed' '--with-openssl=/home/eugene/Summer_2024/CurlImpersonate/Project/MyFork/curl-impersonate_3_07_2024/build/boringssl/build' '--enable-websockets' 'USE_CURL_SSLKEYLOGFILE=true' '--with-zlib'"
         ;;
 
     *)

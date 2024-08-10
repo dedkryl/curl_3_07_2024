@@ -180,7 +180,8 @@ static const struct LongShort aliases[]= {
   {"$D", "proto",                    ARG_STRING},
   {"$E", "proto-redir",              ARG_STRING},
   {"$F", "resolve",                  ARG_STRING},
-  {"$G", "delegation",               ARG_STRING},
+  /*{"$G", "delegation",             ARG_STRING},*/
+  {"$G", "h2-settings-style",        ARG_STRING},
   {"$H", "mail-auth",                ARG_STRING},
   {"$I", "post303",                  ARG_BOOL},
   {"$J", "metalink",                 ARG_BOOL},
@@ -1333,8 +1334,13 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
         if(err)
           return err;
         break;
-      case 'G': /* --delegation LEVEL */
+      /* dedkryl  
+      case 'G': // --delegation LEVEL 
         config->gssapi_delegation = delegation(config, nextarg);
+        break;
+      */
+      case 'G': // --h2_settings_style STYLE 
+        config->h2_settings_style = h2_settings_style(config, nextarg);
         break;
       case 'H': /* --mail-auth */
         GetStr(&config->mail_auth, nextarg);

@@ -3008,6 +3008,11 @@ CURLcode Curl_vsetopt(struct Curl_easy *data, CURLoption option, va_list param)
   case CURLOPT_HTTP2_NO_SERVER_PUSH:
     data->set.http2_no_server_push = (0 != va_arg(param, long)) ? TRUE : FALSE;
     break;
+  case CURLOPT_HTTP2_SETTINGS_STYLE:
+    uarg = va_arg(param, unsigned long);
+    DEBUGF(fprintf(stderr, "Curl_vsetopt: h2_settings_style = %d\n", uarg));
+    data->set.h2_settings_style = uarg;
+    break;  
 #ifdef USE_UNIX_SOCKETS
   case CURLOPT_UNIX_SOCKET_PATH:
     data->set.abstract_unix_socket = FALSE;

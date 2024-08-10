@@ -2251,6 +2251,12 @@ typedef enum {
    */
   CURLOPT(CURLOPT_SSL_PERMUTE_EXTENSIONS, CURLOPTTYPE_LONG, 330),
 
+   /*
+   * curl-impersonate dedkryl:
+   * Browser HTTP2 settings style.
+   */
+  CURLOPT(CURLOPT_HTTP2_SETTINGS_STYLE, CURLOPTTYPE_LONG, 331),
+
   CURLOPT_LASTENTRY /* the last unused */
 } CURLoption;
 

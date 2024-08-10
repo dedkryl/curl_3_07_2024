@@ -1501,6 +1501,9 @@ static CURLcode single_transfer(struct GlobalConfig *global,
           if(config->http2_no_server_push)
             my_setopt(curl, CURLOPT_HTTP2_NO_SERVER_PUSH,
                       config->http2_no_server_push ? 1L : 0L);
+          
+          my_setopt(curl, CURLOPT_HTTP2_SETTINGS_STYLE,
+                      config->h2_settings_style);
 
         } /* (proto_http) */
 

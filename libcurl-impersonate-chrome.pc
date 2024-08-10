@@ -37,5 +37,5 @@ URL: https://curl.se/
 Description: Library to transfer files with ftp, http, etc.
 Version: 8.1.1
 Libs: -L${libdir} -lcurl-impersonate-chrome 
-Libs.private: -lnghttp2 -lssl -lcrypto -lzstd -lbrotlidec-static -lbrotlicommon-static -lz -pthread -pthread
+Libs.private: -lnghttp2 -lssl -lcrypto -lzstd -lbrotlidec-static -lbrotlicommon-static -lz -ldl -lpthread -pthread
 Cflags: -I${includedir} 

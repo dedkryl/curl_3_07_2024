@@ -96,9 +96,11 @@
 static int populate_settings(nghttp2_settings_entry *iv,
                              struct Curl_easy *data)
 {
+  /*
+  lwhiker version:
   int i = 0;
 
-  /* curl-impersonate: Align HTTP/2 settings to Chrome's */
+  // curl-impersonate: Align HTTP/2 settings to Chrome's 
   iv[i].settings_id = NGHTTP2_SETTINGS_HEADER_TABLE_SIZE;
   iv[i].value = 0x10000;
   i++;
@@ -127,6 +129,79 @@ static int populate_settings(nghttp2_settings_entry *iv,
   // However, it seems to have been removed since.
   // Curl_rand(data, (unsigned char *)&iv[4].settings_id, sizeof(iv[4].settings_id));
   // Curl_rand(data, (unsigned char *)&iv[4].value, sizeof(iv[4].value));
+  */
+  //dedkryl version;
+  /* Default_style = 0, Chrome127_style = 1 , Safari17_5_style = 2 ...*/
+  int i = 0;
+  if(data->set.h2_settings_style == 0)//Default_style for all others
+  {
+    DEBUGF(fprintf(stderr, "populate_settings: h2_settings_style = Default_style\n"));
+    // curl-impersonate: Align HTTP/2 settings to Chrome's 
+    iv[i].settings_id = NGHTTP2_SETTINGS_HEADER_TABLE_SIZE;
+    iv[i].value = 0x10000;
+    i++;
+
+    if(data->set.http2_no_server_push) {
+      iv[i].settings_id = NGHTTP2_SETTINGS_ENABLE_PUSH;
+      iv[i].value = 0;
+      i++;
+    }
+
+    iv[i].settings_id = NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS;
+    iv[i].value = Curl_multi_max_concurrent_streams(data->multi);
+    i++;
+
+    iv[i].settings_id = NGHTTP2_SETTINGS_INITIAL_WINDOW_SIZE;
+    iv[i].value = 0x600000;
+    i++;
+
+    iv[i].settings_id = NGHTTP2_SETTINGS_MAX_HEADER_LIST_SIZE;
+    iv[i].value = 0x40000;
+    i++;
+  }
+  else if(data->set.h2_settings_style == 1)//Chrome127_style
+  {
+    /*
+      [SETTINGS_HEADER_TABLE_SIZE(0x01):65536]
+      [SETTINGS_ENABLE_PUSH(0x02):0]
+      [SETTINGS_INITIAL_WINDOW_SIZE(0x04):6291456]
+      [SETTINGS_MAX_HEADER_LIST_SIZE(0x06):262144]
+    */
+    DEBUGF(fprintf(stderr, "populate_settings: h2_settings_style = Chrome127_style\n"));
+    iv[i].settings_id = NGHTTP2_SETTINGS_HEADER_TABLE_SIZE;
+    iv[i].value = 0x10000;
+    i++;
+
+    if(data->set.http2_no_server_push) {
+      iv[i].settings_id = NGHTTP2_SETTINGS_ENABLE_PUSH;
+      iv[i].value = 0;
+      i++;
+    }
+
+    iv[i].settings_id = NGHTTP2_SETTINGS_INITIAL_WINDOW_SIZE;
+    iv[i].value = 0x600000;
+    i++;
+
+    iv[i].settings_id = NGHTTP2_SETTINGS_MAX_HEADER_LIST_SIZE;
+    iv[i].value = 0x40000;
+    i++;
+
+  }
+  else if(data->set.h2_settings_style == 2)//Safari17_5_style
+  {
+    /*
+    	[SETTINGS_INITIAL_WINDOW_SIZE(0x04):4194304]
+      [SETTINGS_MAX_CONCURRENT_STREAMS(0x03):100]
+    */
+    DEBUGF(fprintf(stderr, "populate_settings: h2_settings_style = Safari17_5_style\n"));
+    iv[i].settings_id = NGHTTP2_SETTINGS_INITIAL_WINDOW_SIZE;
+    iv[i].value = 0x600000;
+    i++;
+
+    iv[i].settings_id = NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS;
+    iv[i].value = Curl_multi_max_concurrent_streams(data->multi);
+    i++;
+  }
 
   return i;
 }

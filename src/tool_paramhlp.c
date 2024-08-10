@@ -600,6 +600,21 @@ long delegation(struct OperationConfig *config, const char *str)
   return CURLGSSAPI_DELEGATION_NONE;
 }
 
+long h2_settings_style(struct OperationConfig *config, const char *str)
+{
+  if(curl_strequal("Default_style", str))
+    return 0;
+  if(curl_strequal("Chrome127_style", str))
+    return 1;
+  if(curl_strequal("Safari17_5_style", str))
+    return 2;
+
+  warnf(config->global, "unrecognized h2_setting_style  '%s', using Default_style\n",
+        str);
+
+  return 0;
+}
+
 /*
  * my_useragent: returns allocated string with default user agent
  */

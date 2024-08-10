@@ -124,7 +124,9 @@ cmake_dependent_option(ENABLE_THREADED_RESOLVER "Set to ON to enable threaded DN
         ON "NOT ENABLE_ARES"
         OFF)
 
-option(ENABLE_DEBUG "Set to ON to enable curl debug features" OFF)
+#option(ENABLE_DEBUG "Set to ON to enable curl debug features" OFF)
+#dedkryl:
+option(ENABLE_DEBUG "Set to ON to enable curl debug features" ON)
 option(ENABLE_CURLDEBUG "Set to ON to build with TrackMemory feature enabled" OFF)
 
 include(PickyWarnings)

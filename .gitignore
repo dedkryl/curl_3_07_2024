@@ -65,3 +65,9 @@ libstandaloneengine.a
 tests/string
 tests/config
 tests/ech-log/
+libcurl-impersonate-chrome.pc
+clean_branch.sh
+rebuild_branch.sh
+.vscode/settings.json
+docs/curl.1
+curl-impersonate-chrome-config
