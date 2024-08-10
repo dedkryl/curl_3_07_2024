@@ -2534,10 +2534,16 @@ ParameterError parse_args(struct GlobalConfig *global, int argc,
   ParameterError result = PARAM_OK;
   struct OperationConfig *config = global->first;
 
+  printf(" parse_args argc =  %d\n", argc); 
+  
   for(i = 1, stillflags = TRUE; i < argc && !result; i++) {
     orig_opt = curlx_convert_tchar_to_UTF8(argv[i]);
     if(!orig_opt)
       return PARAM_NO_MEM;
+    
+    printf("\n\n"); 
+    printf(" parse_args stillflags =  %d\n", stillflags);  
+    printf(" parse_args orig_opt :  %s\n", orig_opt);  
 
     if(stillflags && ('-' == orig_opt[0])) {
       bool passarg;
@@ -2546,10 +2552,12 @@ ParameterError parse_args(struct GlobalConfig *global, int argc,
         /* This indicates the end of the flags and thus enables the
            following (URL) argument to start with -. */
         stillflags = FALSE;
+        printf(" parse_args stillflags = FALSE\n"); 
       else {
         char *nextarg = NULL;
         if(i < (argc - 1)) {
           nextarg = curlx_convert_tchar_to_UTF8(argv[i + 1]);
+          printf(" parse_args nextarg =  %s\n", nextarg); 
           if(!nextarg) {
             curlx_unicodefree(orig_opt);
             return PARAM_NO_MEM;
