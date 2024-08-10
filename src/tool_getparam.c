@@ -1339,7 +1339,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
         config->gssapi_delegation = delegation(config, nextarg);
         break;
       */
-      case 'G': // --h2_settings_style STYLE 
+      case 'G': // --h2-settings-style STYLE 
         config->h2_settings_style = h2_settings_style(config, nextarg);
         break;
       case 'H': /* --mail-auth */

@@ -302,7 +302,7 @@ struct OperationConfig {
   struct State state;             /* for create_transfer() */
   bool rm_partial;                /* on error, remove partially written output
                                      files */
-  int h2_settings_style;          /* Default_style = 0, Chrome127_style = 1 , Safari17_5_style = 2 ...*/
+  long h2_settings_style;          /* Default_style = 0, Chrome127_style = 1 , Safari17_5_style = 2 ...*/
 };
 
 struct GlobalConfig {

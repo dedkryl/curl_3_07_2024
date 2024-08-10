@@ -1904,7 +1904,7 @@ struct UserDefined {
 #ifdef USE_HTTP2
   BIT(http2_no_server_push);    /* Disable HTTP2 server push */
   /* Default_style = 0, Chrome127_style = 1 , Safari17_5_style = 2 ...*/
-  int h2_settings_style;
+  unsigned char  h2_settings_style;
 #endif
 };
 
