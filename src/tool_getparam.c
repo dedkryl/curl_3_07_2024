@@ -707,9 +707,9 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
     NULL
   };
 
-   printf(" getparameter flag : %s\n", flag);
-   if(nextarg)
-      printf(" getparameter nextarg : %s\n", nextarg);
+   //printf(" getparameter flag : %s\n", flag);
+   //if(nextarg)
+   //   printf(" getparameter nextarg : %s\n", nextarg);
 
 #ifdef HAVE_WRITABLE_ARGV
   argv_item_t clearthis = NULL;
@@ -2539,24 +2539,26 @@ ParameterError parse_args(struct GlobalConfig *global, int argc,
   ParameterError result = PARAM_OK;
   struct OperationConfig *config = global->first;
 
-  printf(" parse_args argc =  %d\n", argc);
+  //printf(" parse_args argc =  %d\n", argc);
   /* ******************* */
+  /*
   int k = 0;
   for(k = 0;  k < argc; k++)
   {
     printf(" k =  %d, argv : %s\n", k, argv[k]);
   }
+  */
   /* ******************* */ 
   
   for(i = 1, stillflags = TRUE; i < argc && !result; i++) {
-    printf(" i =  %d, argv : %s\n", i, argv[i]);
+    //printf(" i =  %d, argv : %s\n", i, argv[i]);
     orig_opt = curlx_convert_tchar_to_UTF8(argv[i]);
     if(!orig_opt)
       return PARAM_NO_MEM;
     
-    printf("\n\n"); 
-    printf(" parse_args stillflags =  %d\n", stillflags);  
-    printf(" parse_args orig_opt :  %s\n", orig_opt);  
+    //printf("\n\n"); 
+    //printf(" parse_args stillflags =  %d\n", stillflags);  
+    //printf(" parse_args orig_opt :  %s\n", orig_opt);  
 
     if(stillflags && ('-' == orig_opt[0])) {
       bool passarg;
@@ -2566,13 +2568,13 @@ ParameterError parse_args(struct GlobalConfig *global, int argc,
         /* This indicates the end of the flags and thus enables the
            following (URL) argument to start with -. */
         stillflags = FALSE;
-        printf(" parse_args stillflags = FALSE\n");
+        //printf(" parse_args stillflags = FALSE\n");
       } 
       else {
         char *nextarg = NULL;
         if(i < (argc - 1)) {
           nextarg = curlx_convert_tchar_to_UTF8(argv[i + 1]);
-          printf(" parse_args nextarg =  %s\n", nextarg); 
+          //printf(" parse_args nextarg =  %s\n", nextarg); 
           if(!nextarg) {
             curlx_unicodefree(orig_opt);
             return PARAM_NO_MEM;
@@ -2582,7 +2584,7 @@ ParameterError parse_args(struct GlobalConfig *global, int argc,
         result = getparameter(orig_opt, nextarg, argv[i + 1], &passarg,
                               global, config);
         
-        printf(" getparameter 1 result =  %d, passarg = %d\n", result, passarg);
+        //printf(" getparameter 1 result =  %d, passarg = %d\n", result, passarg);
 
         curlx_unicodefree(nextarg);
         config = global->last;
@@ -2618,7 +2620,7 @@ ParameterError parse_args(struct GlobalConfig *global, int argc,
         }
         else if(!result && passarg)
         {
-          printf(" i++\n");
+          //printf(" i++\n");
           i++; /* we're supposed to skip this */
         }
       }
@@ -2629,7 +2631,7 @@ ParameterError parse_args(struct GlobalConfig *global, int argc,
       /* Just add the URL please */
       result = getparameter("--url", orig_opt, argv[i], &used, global, config);
     
-      printf(" getparameter 2 result =  %d\n", result);
+      //printf(" getparameter 2 result =  %d\n", result);
     }
 
     if(!result)

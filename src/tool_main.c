@@ -243,15 +243,17 @@ int main(int argc, char *argv[])
 #endif
 {
   
-  printf(" parse_args argc =  %d\n", argc);
+  //printf(" parse_args argc =  %d\n", argc);
   /* ******************* */
+  /*
   int k = 0;
   for(k = 0;  k < argc; k++)
   {
     printf(" k =  %d, argv : %s\n", k, argv[k]);
   }
+  */
   /* ******************* */ 
-  return 0;
+  //return 0;
 
   CURLcode result = CURLE_OK;
   struct GlobalConfig global;
