@@ -2549,10 +2549,12 @@ ParameterError parse_args(struct GlobalConfig *global, int argc,
       bool passarg;
 
       if(!strcmp("--", orig_opt))
+      {
         /* This indicates the end of the flags and thus enables the
            following (URL) argument to start with -. */
         stillflags = FALSE;
-        printf(" parse_args stillflags = FALSE\n"); 
+        printf(" parse_args stillflags = FALSE\n");
+      } 
       else {
         char *nextarg = NULL;
         if(i < (argc - 1)) {
