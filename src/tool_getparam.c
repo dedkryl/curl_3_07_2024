@@ -734,7 +734,9 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
     }
 
     for(j = 0; j < sizeof(aliases)/sizeof(aliases[0]); j++) {
+      printf(" getparameter lname : %s, word : %s, fnam = %d\n", aliases[j].lname, word, fnam);
       if(curl_strnequal(aliases[j].lname, word, fnam)) {
+        printf(" getparameter longopt = TRUE \n");
         longopt = TRUE;
         numhits++;
         if(curl_strequal(aliases[j].lname, word)) {
@@ -793,6 +795,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
     if(aliases[hit].desc >= ARG_STRING) {
       /* this option requires an extra parameter */
       if(!longopt && parse[1]) {
+        printf(" getparameter longopt = %d, parse : %s\n",longopt, parse);
         nextarg = (char *)&parse[1]; /* this is the actual extra parameter */
         singleopt = TRUE;   /* don't loop anymore after this */
       }
@@ -803,6 +806,8 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
         clearthis = cleararg;
 #endif
         *usedarg = TRUE; /* mark it as used */
+        printf(" getparameter usedarg : %d\n", usedarg);
+        
       }
 
       if((aliases[hit].desc == ARG_FILENAME) &&
