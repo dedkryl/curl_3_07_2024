@@ -242,6 +242,17 @@ int wmain(int argc, wchar_t *argv[])
 int main(int argc, char *argv[])
 #endif
 {
+  
+  printf(" parse_args argc =  %d\n", argc);
+  /* ******************* */
+  int k = 0;
+  for(k = 0;  k < argc; k++)
+  {
+    printf(" k =  %d, argv : %s\n", k, argv[k]);
+  }
+  /* ******************* */ 
+  return 0;
+
   CURLcode result = CURLE_OK;
   struct GlobalConfig global;
   memset(&global, 0, sizeof(global));
