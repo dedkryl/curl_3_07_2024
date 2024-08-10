@@ -734,7 +734,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
     }
 
     for(j = 0; j < sizeof(aliases)/sizeof(aliases[0]); j++) {
-      printf(" getparameter lname : %s, word : %s, fnam = %d\n", aliases[j].lname, word, fnam);
+      //printf(" getparameter lname : %s, word : %s, fnam = %d\n", aliases[j].lname, word, fnam);
       if(curl_strnequal(aliases[j].lname, word, fnam)) {
         printf(" getparameter longopt = TRUE \n");
         longopt = TRUE;
@@ -806,7 +806,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
         clearthis = cleararg;
 #endif
         *usedarg = TRUE; /* mark it as used */
-        printf(" getparameter usedarg : %d\n", usedarg);
+        printf(" getparameter usedarg : %d\n", *usedarg);
         
       }
 
@@ -2539,9 +2539,17 @@ ParameterError parse_args(struct GlobalConfig *global, int argc,
   ParameterError result = PARAM_OK;
   struct OperationConfig *config = global->first;
 
-  printf(" parse_args argc =  %d\n", argc); 
+  printf(" parse_args argc =  %d\n", argc);
+  /* ******************* */
+  int k = 0;
+  for(k = 0;  k < argc; k++)
+  {
+    printf(" k =  %d, argv : %s\n", k, argv[k]);
+  }
+  /* ******************* */ 
   
   for(i = 1, stillflags = TRUE; i < argc && !result; i++) {
+    printf(" i =  %d, argv : %s\n", i, argv[i]);
     orig_opt = curlx_convert_tchar_to_UTF8(argv[i]);
     if(!orig_opt)
       return PARAM_NO_MEM;
@@ -2574,7 +2582,7 @@ ParameterError parse_args(struct GlobalConfig *global, int argc,
         result = getparameter(orig_opt, nextarg, argv[i + 1], &passarg,
                               global, config);
         
-        printf(" getparameter 1 result =  %d\n", result);
+        printf(" getparameter 1 result =  %d, passarg = %d\n", result, passarg);
 
         curlx_unicodefree(nextarg);
         config = global->last;
@@ -2609,7 +2617,10 @@ ParameterError parse_args(struct GlobalConfig *global, int argc,
           }
         }
         else if(!result && passarg)
+        {
+          printf(" i++\n");
           i++; /* we're supposed to skip this */
+        }
       }
     }
     else {
