@@ -727,6 +727,8 @@ static CURLcode single_transfer(struct GlobalConfig *global,
   char *httpgetfields = state->httpgetfields;
   *added = FALSE; /* not yet */
 
+  printf(" single_transfer call \n");
+
   if(config->postfields) {
     if(config->use_httpget) {
       if(!httpgetfields) {

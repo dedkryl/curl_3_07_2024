@@ -706,6 +706,11 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
     "ftps",
     NULL
   };
+
+   printf(" getparameter flag : %s\n", flag);
+   if(nextarg)
+      printf(" getparameter nextarg : %s\n", nextarg);
+
 #ifdef HAVE_WRITABLE_ARGV
   argv_item_t clearthis = NULL;
 #else
@@ -758,6 +763,8 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
     hit = -1;
     parse = flag;
   }
+
+ 
 
   do {
     /* we can loop here if we have multiple single-letters */
@@ -1341,6 +1348,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
       */
       case 'G': // --h2-settings-style STYLE 
         config->h2_settings_style = h2_settings_style(config, nextarg);
+        printf(" config->h2_settings_style = %d\n",config->h2_settings_style);
         break;
       case 'H': /* --mail-auth */
         GetStr(&config->mail_auth, nextarg);
@@ -2550,6 +2558,8 @@ ParameterError parse_args(struct GlobalConfig *global, int argc,
 
         result = getparameter(orig_opt, nextarg, argv[i + 1], &passarg,
                               global, config);
+        
+        printf(" getparameter 1 result =  %d\n", result);
 
         curlx_unicodefree(nextarg);
         config = global->last;
@@ -2592,6 +2602,8 @@ ParameterError parse_args(struct GlobalConfig *global, int argc,
 
       /* Just add the URL please */
       result = getparameter("--url", orig_opt, argv[i], &used, global, config);
+    
+      printf(" getparameter 2 result =  %d\n", result);
     }
 
     if(!result)
