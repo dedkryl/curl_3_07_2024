@@ -202,6 +202,30 @@ static int populate_settings(nghttp2_settings_entry *iv,
     iv[i].value = Curl_multi_max_concurrent_streams(data->multi);
     i++;
   }
+  else if(data->set.h2_settings_style == 3)//Safari17_1_style 
+  {
+    /*
+        [SETTINGS_ENABLE_PUSH(0x02):0]
+        [SETTINGS_INITIAL_WINDOW_SIZE(0x04):4194304]
+        [SETTINGS_MAX_CONCURRENT_STREAMS(0x03):100]
+    */
+    DEBUGF(fprintf(stderr, "populate_settings: h2_settings_style = Safari17_1_style\n"));
+    
+    if(data->set.http2_no_server_push) {
+      iv[i].settings_id = NGHTTP2_SETTINGS_ENABLE_PUSH;
+      iv[i].value = 0;
+      i++;
+    }
+ 
+    iv[i].settings_id = NGHTTP2_SETTINGS_INITIAL_WINDOW_SIZE;
+    iv[i].value = 0x600000;
+    i++;
+
+    iv[i].settings_id = NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS;
+    iv[i].value = Curl_multi_max_concurrent_streams(data->multi);
+    i++;
+
+  }
 
   return i;
 }
